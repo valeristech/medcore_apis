@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+
+# Builds and outputs
+dist/
+build/
+
+# Logs and debug files
+logs
+*.log
+npm-debug.log*
+
+# Operating system files
+.DS_Store
+Thumbs.db
+/src/generated/prisma

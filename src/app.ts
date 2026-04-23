@@ -1,0 +1,59 @@
+import Fastify from 'fastify';
+import fastifyJwt from '@fastify/jwt';
+import type { AppEnv } from './core/env.js';
+import { registerAuditAccess } from './core/plugins/auditAccess.js';
+import { registerErrorHandler } from './core/plugins/errorHandler.js';
+import { registerOpenApi, registerScalarDocs } from './core/plugins/openapi.js';
+import { registerRequestContext } from './core/plugins/requestContext.js';
+import { authRoutes } from './modules/auth/auth.routes.js';
+import { healthRouteSchema } from './modules/health/health.schemas.js';
+
+export const buildApp = async (env: AppEnv) => {
+  const logger =
+    env.NODE_ENV === 'production'
+      ? { level: 'info' as const }
+      : {
+          level: 'debug' as const,
+          transport: {
+            target: 'pino-pretty',
+            options: {
+              translateTime: 'HH:MM:ss Z',
+              ignore: 'pid,hostname',
+            },
+          },
+        };
+
+  const app = Fastify({ logger });
+
+  await registerOpenApi(app);
+
+  await registerRequestContext(app);
+  await registerAuditAccess(app);
+  await registerErrorHandler(app);
+
+  await app.register(fastifyJwt, {
+    secret: env.JWT_SECRET,
+  });
+
+  app.get(
+    '/api/health',
+    healthRouteSchema,
+    async (request) => {
+      return {
+        success: true as const,
+        data: {
+          status: 'ok',
+          message: 'MediCore API funcionando perfectamente 🚀',
+          timestamp: new Date().toISOString(),
+        },
+        meta: { requestId: request.requestId },
+      };
+    },
+  );
+
+  await app.register(authRoutes, { prefix: '/api/auth' });
+
+  await registerScalarDocs(app);
+
+  return app;
+};

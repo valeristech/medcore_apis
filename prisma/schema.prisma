@@ -1,0 +1,1457 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model stock {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  producto_id    String    @db.Uuid
+  bodega_id      String    @db.Uuid
+  lote_id        String?   @db.Uuid
+  cantidad       Decimal   @default(0) @db.Decimal(12, 2)
+  costo_unitario Decimal?  @default(0) @db.Decimal(12, 2)
+  created_at     DateTime? @default(now()) @db.Timestamp(6)
+  updated_at     DateTime? @default(now()) @db.Timestamp(6)
+  deleted        Boolean?  @default(false)
+  deleted_at     DateTime? @db.Timestamp(6)
+  bodegas        bodega    @relation(fields: [bodega_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lote           lote?     @relation(fields: [lote_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  productos      producto  @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([producto_id, bodega_id, lote_id])
+  @@index([bodega_id], map: "idx_stock_bodega")
+  @@index([producto_id], map: "idx_stock_producto")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model alergia {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paciente_id   String    @db.Uuid
+  sustancia     String    @db.VarChar(200)
+  tipo_reaccion String?   @db.VarChar(100)
+  severidad     String    @db.VarChar(20)
+  notas         String?
+  activo        Boolean?  @default(true)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  deleted       Boolean?  @default(false)
+  deleted_at    DateTime? @db.Timestamp(6)
+  paciente      paciente  @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([paciente_id], map: "idx_alergia_paciente")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model alerta_preventiva {
+  id                         String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id            String                      @db.Uuid
+  paciente_id                String                      @db.Uuid
+  plan_id                    String?                     @db.Uuid
+  actividad_id               String?                     @db.Uuid
+  indicacion_id              String?                     @db.Uuid
+  tipo                       String                      @db.VarChar(30)
+  titulo                     String                      @db.VarChar(200)
+  descripcion                String?
+  prioridad                  String?                     @default("normal") @db.VarChar(20)
+  estado                     String                      @default("activa") @db.VarChar(20)
+  visible_para               String?                     @default("ambos") @db.VarChar(20)
+  gestionada_por             String?                     @db.Uuid
+  fecha_gestion              DateTime?                   @db.Timestamp(6)
+  notas_gestion              String?
+  fecha_vencimiento          DateTime?                   @db.Date
+  deleted                    Boolean?                    @default(false)
+  deleted_at                 DateTime?                   @db.Timestamp(6)
+  created_at                 DateTime?                   @default(now()) @db.Timestamp(6)
+  plan_seguimiento_actividad plan_seguimiento_actividad? @relation(fields: [actividad_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario                    usuario?                    @relation(fields: [gestionada_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  indicacion_seguimiento     indicacion_seguimiento?     @relation(fields: [indicacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion               organizacion                @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente                   paciente                    @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plan_seguimiento           plan_seguimiento?           @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([organizacion_id, estado, prioridad], map: "idx_alerta_activas", where: raw("(((estado)::text = 'activa'::text) AND (deleted = false))"))
+  @@index([estado], map: "idx_alerta_estado")
+  @@index([organizacion_id], map: "idx_alerta_org")
+  @@index([paciente_id], map: "idx_alerta_paciente")
+  @@index([organizacion_id, visible_para, estado], map: "idx_alerta_visible", where: raw("(((estado)::text = 'activa'::text) AND (deleted = false))"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model archivo_adjunto {
+  id                 String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id       String?             @db.Uuid
+  estudio_id         String?             @db.Uuid
+  paciente_id        String              @db.Uuid
+  tipo_archivo       String?             @db.VarChar(30)
+  nombre_archivo     String              @db.VarChar(300)
+  url_storage        String              @db.VarChar(1000)
+  tamano_bytes       BigInt?
+  mime_type          String?             @db.VarChar(100)
+  descripcion        String?
+  uploaded_by        String?             @db.Uuid
+  uploaded_at        DateTime?           @default(now()) @db.Timestamp(6)
+  deleted            Boolean?            @default(false)
+  deleted_at         DateTime?           @db.Timestamp(6)
+  encuentro          encuentro?          @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  estudio_solicitado estudio_solicitado? @relation(fields: [estudio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente           paciente            @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario            usuario?            @relation(fields: [uploaded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  consentimiento     consentimiento[]
+
+  @@index([encuentro_id], map: "idx_archivo_encuentro")
+  @@index([paciente_id], map: "idx_archivo_paciente")
+}
+
+model aseguradora {
+  id                   String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nombre               String                 @db.VarChar(200)
+  nit                  String?                @db.VarChar(20)
+  direccion            String?
+  telefono             String?                @db.VarChar(30)
+  email                String?                @db.VarChar(200)
+  contacto_nombre      String?                @db.VarChar(150)
+  activa               Boolean?               @default(true)
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  deleted              Boolean?               @default(false)
+  deleted_at           DateTime?              @db.Timestamp(6)
+  convenio_aseguradora convenio_aseguradora[]
+  paciente_seguro      paciente_seguro[]
+  reclamacion_seguro   reclamacion_seguro[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model audit_log {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id String       @db.Uuid
+  usuario_id      String?      @db.Uuid
+  accion          String       @db.VarChar(30)
+  recurso         String       @db.VarChar(100)
+  recurso_id      String?      @db.VarChar(100)
+  descripcion     String?
+  datos_antes     Json?
+  datos_despues   Json?
+  ip              String?      @db.VarChar(50)
+  user_agent      String?
+  fecha           DateTime     @default(now()) @db.Timestamp(6)
+  organizacion    organizacion @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario         usuario?     @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([fecha], map: "idx_audit_fecha")
+  @@index([organizacion_id], map: "idx_audit_organizacion")
+  @@index([recurso, recurso_id], map: "idx_audit_recurso")
+  @@index([usuario_id], map: "idx_audit_usuario")
+}
+
+model bodega {
+  id                                                                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sede_id                                                               String                  @db.Uuid
+  nombre                                                                String                  @db.VarChar(100)
+  descripcion                                                           String?
+  activo                                                                Boolean?                @default(true)
+  created_at                                                            DateTime?               @default(now()) @db.Timestamp(6)
+  deleted                                                               Boolean?                @default(false)
+  deleted_at                                                            DateTime?               @db.Timestamp(6)
+  sede                                                                  sede                    @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  movimiento_inventario_movimiento_inventario_bodega_destino_idTobodega movimiento_inventario[] @relation("movimiento_inventario_bodega_destino_idTobodega")
+  movimiento_inventario_movimiento_inventario_bodega_origen_idTobodega  movimiento_inventario[] @relation("movimiento_inventario_bodega_origen_idTobodega")
+  recepcion_compra                                                      recepcion_compra[]
+  stock                                                                 stock[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model catalogo_servicio {
+  id                       String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id          String                     @db.Uuid
+  codigo_interno           String                     @db.VarChar(30)
+  descripcion              String                     @db.VarChar(300)
+  codigo_cpt               String?                    @db.VarChar(20)
+  precio_base              Decimal                    @db.Decimal(12, 2)
+  iva_porcentaje           Decimal?                   @default(0) @db.Decimal(5, 2)
+  categoria                String                     @db.VarChar(30)
+  activo                   Boolean?                   @default(true)
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  deleted                  Boolean?                   @default(false)
+  deleted_at               DateTime?                  @db.Timestamp(6)
+  organizacion             organizacion               @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  descuento_paciente       descuento_paciente[]
+  factura_detalle          factura_detalle[]
+  politica_descuento       politica_descuento[]
+  precio_especial_paciente precio_especial_paciente[]
+
+  @@unique([organizacion_id, codigo_interno])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model cita {
+  id                         String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paciente_id                String                       @db.Uuid
+  usuario_id                 String                       @db.Uuid
+  consultorio_id             String                       @db.Uuid
+  sede_id                    String                       @db.Uuid
+  tipo_cita_id               String                       @db.Uuid
+  fecha_hora_inicio          DateTime                     @db.Timestamp(6)
+  fecha_hora_fin             DateTime                     @db.Timestamp(6)
+  estado                     String                       @default("programada") @db.VarChar(20)
+  motivo_cancelacion         String?
+  notas                      String?
+  origen                     String?                      @default("manual") @db.VarChar(20)
+  recordatorio_enviado       Boolean?                     @default(false)
+  created_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  updated_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  deleted                    Boolean?                     @default(false)
+  deleted_at                 DateTime?                    @db.Timestamp(6)
+  consultorio                consultorio                  @relation(fields: [consultorio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente                   paciente                     @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sede                       sede                         @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tipo_cita                  tipo_cita                    @relation(fields: [tipo_cita_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario                    usuario                      @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro                  encuentro[]
+  factura_detalle            factura_detalle[]
+  indicacion_seguimiento     indicacion_seguimiento[]
+  orden_compra               orden_compra[]
+  plan_seguimiento_actividad plan_seguimiento_actividad[]
+
+  @@index([consultorio_id], map: "idx_cita_consultorio")
+  @@index([estado], map: "idx_cita_estado")
+  @@index([fecha_hora_inicio], map: "idx_cita_fecha")
+  @@index([fecha_hora_inicio, estado], map: "idx_cita_fecha_estado")
+  @@index([paciente_id], map: "idx_cita_paciente")
+  @@index([sede_id], map: "idx_cita_sede")
+  @@index([usuario_id], map: "idx_cita_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model consentimiento {
+  id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id    String?          @db.Uuid
+  paciente_id     String           @db.Uuid
+  tipo            String           @db.VarChar(50)
+  descripcion     String?
+  aceptado        Boolean
+  fecha           DateTime         @default(now()) @db.Timestamp(6)
+  archivo_id      String?          @db.Uuid
+  created_at      DateTime?        @default(now()) @db.Timestamp(6)
+  deleted         Boolean?         @default(false)
+  deleted_at      DateTime?        @db.Timestamp(6)
+  archivo_adjunto archivo_adjunto? @relation(fields: [archivo_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro       encuentro?       @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente        paciente         @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([paciente_id], map: "idx_consentimiento_paciente")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model consultorio {
+  id                   String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sede_id              String                 @db.Uuid
+  nombre               String                 @db.VarChar(100)
+  tipo                 String                 @db.VarChar(30)
+  activo               Boolean?               @default(true)
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  deleted              Boolean?               @default(false)
+  deleted_at           DateTime?              @db.Timestamp(6)
+  cita                 cita[]
+  sede                 sede                   @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  regla_disponibilidad regla_disponibilidad[]
+  usuario_sede         usuario_sede[]
+
+  @@index([sede_id], map: "idx_consultorio_sede")
+}
+
+model convenio_aseguradora {
+  id                String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id   String       @db.Uuid
+  aseguradora_id    String       @db.Uuid
+  servicios_precios Json         @default("[]")
+  vigencia_inicio   DateTime     @db.Date
+  vigencia_fin      DateTime?    @db.Date
+  activo            Boolean?     @default(true)
+  created_at        DateTime?    @default(now()) @db.Timestamp(6)
+  deleted           Boolean?     @default(false)
+  deleted_at        DateTime?    @db.Timestamp(6)
+  aseguradora       aseguradora  @relation(fields: [aseguradora_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion      organizacion @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model descuento_aplicado {
+  id                       String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  factura_id               String                    @db.Uuid
+  factura_detalle_id       String?                   @db.Uuid
+  politica_id              String?                   @db.Uuid
+  descuento_paciente_id    String?                   @db.Uuid
+  precio_especial_id       String?                   @db.Uuid
+  tipo_origen              String                    @db.VarChar(30)
+  tipo_descuento           String                    @db.VarChar(20)
+  valor_descuento          Decimal                   @db.Decimal(12, 2)
+  monto_original           Decimal                   @db.Decimal(12, 2)
+  monto_descontado         Decimal                   @db.Decimal(12, 2)
+  monto_final              Decimal                   @db.Decimal(12, 2)
+  aplicado_por             String                    @db.Uuid
+  notas                    String?
+  deleted                  Boolean?                  @default(false)
+  deleted_at               DateTime?                 @db.Timestamp(6)
+  created_at               DateTime?                 @default(now()) @db.Timestamp(6)
+  usuario                  usuario                   @relation(fields: [aplicado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  descuento_paciente       descuento_paciente?       @relation(fields: [descuento_paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  factura_detalle          factura_detalle?          @relation(fields: [factura_detalle_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  factura                  factura                   @relation(fields: [factura_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  politica_descuento       politica_descuento?       @relation(fields: [politica_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  precio_especial_paciente precio_especial_paciente? @relation(fields: [precio_especial_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([factura_detalle_id], map: "idx_desc_aplicado_detalle")
+  @@index([factura_id], map: "idx_desc_aplicado_factura")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model descuento_paciente {
+  id                  String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id     String               @db.Uuid
+  paciente_id         String               @db.Uuid
+  politica_id         String?              @db.Uuid
+  tipo_descuento      String               @db.VarChar(20)
+  valor               Decimal              @db.Decimal(12, 2)
+  aplica_a            String?              @default("todo") @db.VarChar(30)
+  categoria_aplicable String?              @db.VarChar(30)
+  servicio_id         String?              @db.Uuid
+  motivo              String?
+  autorizado_por      String?              @db.Uuid
+  vigencia_inicio     DateTime?            @default(dbgenerated("CURRENT_DATE")) @db.Date
+  vigencia_fin        DateTime?            @db.Date
+  activo              Boolean?             @default(true)
+  deleted             Boolean?             @default(false)
+  deleted_at          DateTime?            @db.Timestamp(6)
+  created_at          DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?            @default(now()) @db.Timestamp(6)
+  descuento_aplicado  descuento_aplicado[]
+  usuario             usuario?             @relation(fields: [autorizado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion        organizacion         @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente            paciente             @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  politica_descuento  politica_descuento?  @relation(fields: [politica_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalogo_servicio   catalogo_servicio?   @relation(fields: [servicio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([paciente_id, activo], map: "idx_desc_paciente_activo", where: raw("((activo = true) AND (deleted = false))"))
+  @@index([organizacion_id], map: "idx_desc_paciente_org")
+  @@index([paciente_id], map: "idx_desc_paciente_paciente")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model diagnostico {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nota_clinica_id String       @db.Uuid
+  codigo_icd10    String       @db.VarChar(20)
+  descripcion     String       @db.VarChar(500)
+  tipo            String       @db.VarChar(20)
+  notas           String?
+  created_at      DateTime?    @default(now()) @db.Timestamp(6)
+  deleted         Boolean?     @default(false)
+  deleted_at      DateTime?    @db.Timestamp(6)
+  nota_clinica    nota_clinica @relation(fields: [nota_clinica_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([codigo_icd10], map: "idx_diagnostico_icd10")
+  @@index([nota_clinica_id], map: "idx_diagnostico_nota")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model encuentro {
+  id                         String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  cita_id                    String?                      @db.Uuid
+  paciente_id                String                       @db.Uuid
+  usuario_id                 String                       @db.Uuid
+  sede_id                    String                       @db.Uuid
+  plantilla_id               String?                      @db.Uuid
+  tipo                       String                       @db.VarChar(20)
+  motivo_consulta            String?
+  fecha                      DateTime                     @default(now()) @db.Timestamp(6)
+  estado                     String                       @default("abierto") @db.VarChar(20)
+  created_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  updated_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  deleted                    Boolean?                     @default(false)
+  deleted_at                 DateTime?                    @db.Timestamp(6)
+  archivo_adjunto            archivo_adjunto[]
+  consentimiento             consentimiento[]
+  cita                       cita?                        @relation(fields: [cita_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente                   paciente                     @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plantilla_especialidad     plantilla_especialidad?      @relation(fields: [plantilla_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sede                       sede                         @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario                    usuario                      @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  estudio_solicitado         estudio_solicitado[]
+  evolucion                  evolucion[]
+  factura                    factura[]
+  firma                      firma[]
+  indicacion_seguimiento     indicacion_seguimiento[]
+  movimiento_inventario      movimiento_inventario[]
+  nota_clinica               nota_clinica[]
+  orden_compra               orden_compra[]
+  plan_seguimiento           plan_seguimiento[]
+  plan_seguimiento_actividad plan_seguimiento_actividad[]
+  prescripcion               prescripcion[]
+  reclamacion_seguro         reclamacion_seguro[]
+  sesion_telemedicina        sesion_telemedicina[]
+
+  @@index([cita_id], map: "idx_encuentro_cita")
+  @@index([fecha], map: "idx_encuentro_fecha")
+  @@index([paciente_id], map: "idx_encuentro_paciente")
+  @@index([usuario_id], map: "idx_encuentro_usuario")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model estudio_solicitado {
+  id                         String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id               String                       @db.Uuid
+  tipo                       String                       @db.VarChar(30)
+  nombre                     String                       @db.VarChar(300)
+  descripcion                String?
+  urgente                    Boolean?                     @default(false)
+  estado                     String                       @default("solicitado") @db.VarChar(30)
+  resultado_texto            String?
+  fecha_resultado            DateTime?                    @db.Timestamp(6)
+  created_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  updated_at                 DateTime?                    @default(now()) @db.Timestamp(6)
+  deleted                    Boolean?                     @default(false)
+  deleted_at                 DateTime?                    @db.Timestamp(6)
+  archivo_adjunto            archivo_adjunto[]
+  encuentro                  encuentro                    @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plan_seguimiento_actividad plan_seguimiento_actividad[]
+
+  @@index([encuentro_id], map: "idx_estudio_encuentro")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model evolucion {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id String    @db.Uuid
+  usuario_id   String    @db.Uuid
+  nota         String
+  tipo         String?   @default("medica") @db.VarChar(30)
+  fecha        DateTime  @default(now()) @db.Timestamp(6)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  deleted      Boolean?  @default(false)
+  deleted_at   DateTime? @db.Timestamp(6)
+  encuentro    encuentro @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario      usuario   @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([encuentro_id], map: "idx_evolucion_encuentro")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model factura {
+  id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id       String                  @db.Uuid
+  sede_id               String                  @db.Uuid
+  paciente_id           String                  @db.Uuid
+  encuentro_id          String?                 @db.Uuid
+  serie                 String                  @db.VarChar(20)
+  correlativo           Int
+  fecha                 DateTime                @default(dbgenerated("CURRENT_DATE")) @db.Date
+  tipo                  String                  @db.VarChar(30)
+  estado                String                  @default("borrador") @db.VarChar(20)
+  subtotal              Decimal                 @default(0) @db.Decimal(12, 2)
+  descuento_total       Decimal?                @default(0) @db.Decimal(12, 2)
+  iva_total             Decimal                 @default(0) @db.Decimal(12, 2)
+  total                 Decimal                 @default(0) @db.Decimal(12, 2)
+  nit_receptor          String?                 @db.VarChar(20)
+  nombre_receptor       String?                 @db.VarChar(200)
+  fel_uuid              String?                 @db.VarChar(100)
+  fel_pdf_url           String?                 @db.VarChar(1000)
+  fel_xml_url           String?                 @db.VarChar(1000)
+  fecha_emision         DateTime?               @db.Timestamp(6)
+  fecha_anulacion       DateTime?               @db.Timestamp(6)
+  motivo_anulacion      String?
+  notas                 String?
+  created_by            String?                 @db.Uuid
+  created_at            DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at            DateTime?               @default(now()) @db.Timestamp(6)
+  deleted               Boolean?                @default(false)
+  deleted_at            DateTime?               @db.Timestamp(6)
+  descuento_aplicado    descuento_aplicado[]
+  usuario               usuario?                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro             encuentro?              @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion          organizacion            @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente              paciente                @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sede                  sede                    @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  factura_detalle       factura_detalle[]
+  movimiento_inventario movimiento_inventario[]
+  pago                  pago[]
+  reclamacion_seguro    reclamacion_seguro[]
+
+  @@unique([organizacion_id, serie, correlativo])
+  @@index([estado], map: "idx_factura_estado")
+  @@index([fecha], map: "idx_factura_fecha")
+  @@index([fel_uuid], map: "idx_factura_fel", where: raw("(fel_uuid IS NOT NULL)"))
+  @@index([organizacion_id], map: "idx_factura_organizacion")
+  @@index([paciente_id], map: "idx_factura_paciente")
+}
+
+model factura_detalle {
+  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  factura_id         String               @db.Uuid
+  servicio_id        String?              @db.Uuid
+  cita_id            String?              @db.Uuid
+  descripcion        String               @db.VarChar(500)
+  codigo_cpt         String?              @db.VarChar(20)
+  cantidad           Int                  @default(1)
+  precio_unitario    Decimal              @db.Decimal(12, 2)
+  descuento          Decimal?             @default(0) @db.Decimal(12, 2)
+  subtotal           Decimal              @db.Decimal(12, 2)
+  iva                Decimal?             @default(0) @db.Decimal(12, 2)
+  total              Decimal              @db.Decimal(12, 2)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  descuento_aplicado descuento_aplicado[]
+  cita               cita?                @relation(fields: [cita_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  factura            factura              @relation(fields: [factura_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  catalogo_servicio  catalogo_servicio?   @relation(fields: [servicio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([factura_id], map: "idx_factura_detalle_factura")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model firma {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id   String    @db.Uuid
+  usuario_id     String    @db.Uuid
+  tipo           String?   @default("electronica") @db.VarChar(30)
+  hash_documento String?   @db.VarChar(500)
+  fecha_firma    DateTime  @default(now()) @db.Timestamp(6)
+  ip_origen      String?   @db.VarChar(50)
+  deleted        Boolean?  @default(false)
+  deleted_at     DateTime? @db.Timestamp(6)
+  encuentro      encuentro @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario        usuario   @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([encuentro_id, usuario_id])
+  @@index([encuentro_id], map: "idx_firma_encuentro")
+}
+
+model grabacion {
+  id                        String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sesion_id                 String              @db.Uuid
+  url_segura                String              @db.VarChar(1000)
+  duracion_segundos         Int?
+  tamano_bytes              BigInt?
+  consentimiento_registrado Boolean             @default(false)
+  retencion_dias            Int?                @default(90)
+  fecha_eliminacion         DateTime?           @db.Date
+  created_at                DateTime?           @default(now()) @db.Timestamp(6)
+  deleted                   Boolean?            @default(false)
+  deleted_at                DateTime?           @db.Timestamp(6)
+  sesion_telemedicina       sesion_telemedicina @relation(fields: [sesion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([sesion_id], map: "idx_grabacion_sesion")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model indicacion_seguimiento {
+  id                                                   String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id                                         String                       @db.Uuid
+  paciente_id                                          String                       @db.Uuid
+  medico_id                                            String                       @db.Uuid
+  organizacion_id                                      String                       @db.Uuid
+  tipo                                                 String                       @db.VarChar(30)
+  descripcion                                          String
+  dias_para_cita                                       Int?
+  fecha_sugerida                                       DateTime?                    @db.Date
+  rango_fecha_inicio                                   DateTime?                    @db.Date
+  rango_fecha_fin                                      DateTime?                    @db.Date
+  duracion_estimada_minutos                            Int?
+  prioridad                                            String?                      @default("normal") @db.VarChar(20)
+  notas_medico                                         String?
+  atendida_por                                         String?                      @db.Uuid
+  cita_generada_id                                     String?                      @db.Uuid
+  plan_id                                              String?                      @db.Uuid
+  estado                                               String                       @default("pendiente") @db.VarChar(20)
+  fecha_gestion                                        DateTime?                    @db.Timestamp(6)
+  notas_secretaria                                     String?
+  fecha_contacto_paciente                              DateTime?                    @db.Timestamp(6)
+  preferencia_horario                                  String?                      @db.VarChar(50)
+  intentos_contacto                                    Int?                         @default(0)
+  deleted                                              Boolean?                     @default(false)
+  deleted_at                                           DateTime?                    @db.Timestamp(6)
+  created_at                                           DateTime?                    @default(now()) @db.Timestamp(6)
+  updated_at                                           DateTime?                    @default(now()) @db.Timestamp(6)
+  alerta_preventiva                                    alerta_preventiva[]
+  plan_seguimiento                                     plan_seguimiento?            @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_indicacion_plan")
+  usuario_indicacion_seguimiento_atendida_porTousuario usuario?                     @relation("indicacion_seguimiento_atendida_porTousuario", fields: [atendida_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cita                                                 cita?                        @relation(fields: [cita_generada_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro                                            encuentro                    @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario_indicacion_seguimiento_medico_idTousuario    usuario                      @relation("indicacion_seguimiento_medico_idTousuario", fields: [medico_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion                                         organizacion                 @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente                                             paciente                     @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plan_seguimiento_actividad                           plan_seguimiento_actividad[]
+
+  @@index([encuentro_id], map: "idx_indicacion_encuentro")
+  @@index([estado], map: "idx_indicacion_estado")
+  @@index([medico_id], map: "idx_indicacion_medico")
+  @@index([organizacion_id, estado], map: "idx_indicacion_org_estado")
+  @@index([paciente_id], map: "idx_indicacion_paciente")
+  @@index([organizacion_id, estado, created_at], map: "idx_indicacion_pendientes", where: raw("(((estado)::text = ANY ((ARRAY['pendiente'::character varying, 'en_gestion'::character varying, 'no_contactado'::character varying])::text[])) AND (deleted = false))"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lista_espera {
+  id              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paciente_id     String     @db.Uuid
+  tipo_cita_id    String?    @db.Uuid
+  usuario_id      String?    @db.Uuid
+  fecha_desde     DateTime?  @db.Date
+  fecha_hasta     DateTime?  @db.Date
+  notas           String?
+  estado          String?    @default("activa") @db.VarChar(20)
+  fecha_solicitud DateTime?  @default(now()) @db.Timestamp(6)
+  created_at      DateTime?  @default(now()) @db.Timestamp(6)
+  deleted         Boolean?   @default(false)
+  deleted_at      DateTime?  @db.Timestamp(6)
+  paciente        paciente   @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tipo_cita       tipo_cita? @relation(fields: [tipo_cita_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario         usuario?   @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([paciente_id], map: "idx_lista_espera_paciente")
+}
+
+model lote {
+  id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  producto_id           String                  @db.Uuid
+  numero_lote           String                  @db.VarChar(100)
+  fecha_fabricacion     DateTime?               @db.Date
+  fecha_vencimiento     DateTime?               @db.Date
+  proveedor             String?                 @db.VarChar(200)
+  created_at            DateTime?               @default(now()) @db.Timestamp(6)
+  deleted               Boolean?                @default(false)
+  deleted_at            DateTime?               @db.Timestamp(6)
+  producto              producto                @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  movimiento_inventario movimiento_inventario[]
+  recepcion_compra      recepcion_compra[]
+  stock                 stock[]
+
+  @@index([producto_id], map: "idx_lote_producto")
+  @@index([fecha_vencimiento], map: "idx_lote_vencimiento")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mensaje_chat {
+  id                  String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sesion_id           String              @db.Uuid
+  remitente_id        String              @db.Uuid
+  tipo_remitente      String?             @db.VarChar(20)
+  texto               String
+  leido               Boolean?            @default(false)
+  fecha               DateTime            @default(now()) @db.Timestamp(6)
+  deleted             Boolean?            @default(false)
+  deleted_at          DateTime?           @db.Timestamp(6)
+  usuario             usuario             @relation(fields: [remitente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sesion_telemedicina sesion_telemedicina @relation(fields: [sesion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([sesion_id], map: "idx_mensaje_sesion")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model movimiento_inventario {
+  id                                                     String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  producto_id                                            String             @db.Uuid
+  bodega_origen_id                                       String?            @db.Uuid
+  bodega_destino_id                                      String?            @db.Uuid
+  lote_id                                                String?            @db.Uuid
+  encuentro_id                                           String?            @db.Uuid
+  factura_id                                             String?            @db.Uuid
+  usuario_id                                             String             @db.Uuid
+  tipo                                                   String             @db.VarChar(20)
+  cantidad                                               Decimal            @db.Decimal(12, 2)
+  costo_unitario                                         Decimal?           @db.Decimal(12, 2)
+  costo_total                                            Decimal?           @db.Decimal(12, 2)
+  motivo                                                 String?
+  referencia_externa                                     String?            @db.VarChar(200)
+  fecha                                                  DateTime           @default(now()) @db.Timestamp(6)
+  created_at                                             DateTime?          @default(now()) @db.Timestamp(6)
+  deleted                                                Boolean?           @default(false)
+  deleted_at                                             DateTime?          @db.Timestamp(6)
+  bodega_movimiento_inventario_bodega_destino_idTobodega bodega?            @relation("movimiento_inventario_bodega_destino_idTobodega", fields: [bodega_destino_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  bodega_movimiento_inventario_bodega_origen_idTobodega  bodega?            @relation("movimiento_inventario_bodega_origen_idTobodega", fields: [bodega_origen_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro                                              encuentro?         @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  factura                                                factura?           @relation(fields: [factura_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lote                                                   lote?              @relation(fields: [lote_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  producto                                               producto           @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario                                                usuario            @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recepcion_compra                                       recepcion_compra[]
+
+  @@index([fecha], map: "idx_movimiento_fecha")
+  @@index([producto_id], map: "idx_movimiento_producto")
+  @@index([tipo], map: "idx_movimiento_tipo")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model nota_clinica {
+  id                         String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id               String        @db.Uuid
+  motivo_consulta            String?
+  enfermedad_actual          String?
+  antecedentes               String?
+  examen_fisico              String?
+  impresion_diagnostica      String?
+  plan_tratamiento           String?
+  estudios_solicitados_texto String?
+  recomendaciones            String?
+  datos_adicionales          Json?         @default("{}")
+  created_at                 DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at                 DateTime?     @default(now()) @db.Timestamp(6)
+  deleted                    Boolean?      @default(false)
+  deleted_at                 DateTime?     @db.Timestamp(6)
+  diagnostico                diagnostico[]
+  encuentro                  encuentro     @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([encuentro_id], map: "idx_nota_clinica_encuentro")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model orden_compra {
+  id                                           String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id                              String                 @db.Uuid
+  proveedor_id                                 String                 @db.Uuid
+  sede_id                                      String?                @db.Uuid
+  numero_orden                                 String                 @db.VarChar(50)
+  fecha                                        DateTime               @default(dbgenerated("CURRENT_DATE")) @db.Date
+  estado                                       String                 @default("borrador") @db.VarChar(20)
+  fecha_aprobacion                             DateTime?              @db.Timestamp(6)
+  fecha_envio_proveedor                        DateTime?              @db.Timestamp(6)
+  fecha_confirmacion_proveedor                 DateTime?              @db.Timestamp(6)
+  fecha_entrega_estimada                       DateTime?              @db.Date
+  fecha_entrega_real                           DateTime?              @db.Date
+  subtotal                                     Decimal                @default(0) @db.Decimal(12, 2)
+  iva_total                                    Decimal?               @default(0) @db.Decimal(12, 2)
+  total                                        Decimal                @default(0) @db.Decimal(12, 2)
+  paciente_id                                  String?                @db.Uuid
+  encuentro_id                                 String?                @db.Uuid
+  cita_pendiente_id                            String?                @db.Uuid
+  solicitado_por                               String                 @db.Uuid
+  aprobado_por                                 String?                @db.Uuid
+  notas                                        String?
+  notas_proveedor                              String?
+  deleted                                      Boolean?               @default(false)
+  deleted_at                                   DateTime?              @db.Timestamp(6)
+  created_at                                   DateTime?              @default(now()) @db.Timestamp(6)
+  updated_at                                   DateTime?              @default(now()) @db.Timestamp(6)
+  usuario_orden_compra_aprobado_porTousuario   usuario?               @relation("orden_compra_aprobado_porTousuario", fields: [aprobado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cita                                         cita?                  @relation(fields: [cita_pendiente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro                                    encuentro?             @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion                                 organizacion           @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente                                     paciente?              @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  proveedor                                    proveedor              @relation(fields: [proveedor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sede                                         sede?                  @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario_orden_compra_solicitado_porTousuario usuario                @relation("orden_compra_solicitado_porTousuario", fields: [solicitado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orden_compra_detalle                         orden_compra_detalle[]
+  recepcion_compra                             recepcion_compra[]
+
+  @@unique([organizacion_id, numero_orden])
+  @@index([cita_pendiente_id], map: "idx_oc_cita", where: raw("(cita_pendiente_id IS NOT NULL)"))
+  @@index([estado], map: "idx_oc_estado")
+  @@index([fecha_entrega_estimada], map: "idx_oc_fecha_entrega", where: raw("((estado)::text <> ALL ((ARRAY['recibida_completa'::character varying, 'cancelada'::character varying])::text[]))"))
+  @@index([organizacion_id], map: "idx_oc_org")
+  @@index([paciente_id], map: "idx_oc_paciente", where: raw("(paciente_id IS NOT NULL)"))
+  @@index([organizacion_id, estado], map: "idx_oc_pendientes", where: raw("(((estado)::text <> ALL ((ARRAY['recibida_completa'::character varying, 'cancelada'::character varying])::text[])) AND (deleted = false))"))
+  @@index([proveedor_id], map: "idx_oc_proveedor")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model orden_compra_detalle {
+  id                    String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orden_compra_id       String             @db.Uuid
+  producto_id           String             @db.Uuid
+  descripcion           String             @db.VarChar(500)
+  cantidad_solicitada   Decimal            @db.Decimal(12, 2)
+  cantidad_recibida     Decimal?           @default(0) @db.Decimal(12, 2)
+  precio_unitario       Decimal            @db.Decimal(12, 2)
+  subtotal              Decimal            @db.Decimal(12, 2)
+  iva                   Decimal?           @default(0) @db.Decimal(12, 2)
+  total                 Decimal            @db.Decimal(12, 2)
+  precio_venta_paciente Decimal?           @db.Decimal(12, 2)
+  estado                String?            @default("pendiente") @db.VarChar(20)
+  fecha_recepcion       DateTime?          @db.Timestamp(6)
+  recibido_por          String?            @db.Uuid
+  notas                 String?
+  deleted               Boolean?           @default(false)
+  deleted_at            DateTime?          @db.Timestamp(6)
+  created_at            DateTime?          @default(now()) @db.Timestamp(6)
+  orden_compra          orden_compra       @relation(fields: [orden_compra_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  producto              producto           @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario               usuario?           @relation(fields: [recibido_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recepcion_compra      recepcion_compra[]
+
+  @@index([orden_compra_id], map: "idx_ocd_orden")
+  @@index([producto_id], map: "idx_ocd_producto")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model organizacion {
+  id                       String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  razon_social             String                     @db.VarChar(200)
+  nit                      String                     @unique @db.VarChar(20)
+  direccion                String?
+  logo_url                 String?                    @db.VarChar(500)
+  moneda                   String?                    @default("GTQ") @db.VarChar(10)
+  zona_horaria             String?                    @default("America/Guatemala") @db.VarChar(50)
+  idioma                   String?                    @default("es") @db.VarChar(10)
+  certificador_fel         String?                    @db.VarChar(100)
+  certificado_fel          String?
+  serie_fel                String?                    @db.VarChar(20)
+  correlativo_fel          Int?                       @default(0)
+  activo                   Boolean?                   @default(true)
+  created_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  updated_at               DateTime?                  @default(now()) @db.Timestamp(6)
+  deleted                  Boolean?                   @default(false)
+  deleted_at               DateTime?                  @db.Timestamp(6)
+  alerta_preventiva        alerta_preventiva[]
+  audit_log                audit_log[]
+  catalogo_servicio        catalogo_servicio[]
+  convenio_aseguradora     convenio_aseguradora[]
+  descuento_paciente       descuento_paciente[]
+  factura                  factura[]
+  indicacion_seguimiento   indicacion_seguimiento[]
+  orden_compra             orden_compra[]
+  paciente_organizacion    paciente_organizacion[]
+  plan_seguimiento         plan_seguimiento[]
+  plantilla_especialidad   plantilla_especialidad[]
+  plantilla_recordatorio   plantilla_recordatorio[]
+  politica_descuento       politica_descuento[]
+  precio_especial_paciente precio_especial_paciente[]
+  producto                 producto[]
+  proveedor                proveedor[]
+  reclamacion_seguro       reclamacion_seguro[]
+  rol                      rol[]
+  sede                     sede[]
+  tipo_cita                tipo_cita[]
+  usuario                  usuario[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model paciente {
+  id                           String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  dpi                          String?                    @db.VarChar(20)
+  nit                          String?                    @db.VarChar(20)
+  nombre                       String                     @db.VarChar(150)
+  apellido                     String                     @db.VarChar(150)
+  fecha_nacimiento             DateTime?                  @db.Date
+  genero                       String?                    @db.VarChar(20)
+  telefono                     String?                    @db.VarChar(30)
+  telefono_secundario          String?                    @db.VarChar(30)
+  email                        String?                    @db.VarChar(200)
+  direccion                    String?
+  municipio                    String?                    @db.VarChar(100)
+  departamento                 String?                    @db.VarChar(100)
+  contacto_emergencia_nombre   String?                    @db.VarChar(150)
+  contacto_emergencia_telefono String?                    @db.VarChar(30)
+  contacto_emergencia_relacion String?                    @db.VarChar(50)
+  grupo_sanguineo              String?                    @db.VarChar(10)
+  notas_globales               String?
+  activo                       Boolean?                   @default(true)
+  created_at                   DateTime?                  @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime?                  @default(now()) @db.Timestamp(6)
+  deleted                      Boolean?                   @default(false)
+  deleted_at                   DateTime?                  @db.Timestamp(6)
+  alergia                      alergia[]
+  alerta_preventiva            alerta_preventiva[]
+  archivo_adjunto              archivo_adjunto[]
+  cita                         cita[]
+  consentimiento               consentimiento[]
+  descuento_paciente           descuento_paciente[]
+  encuentro                    encuentro[]
+  factura                      factura[]
+  indicacion_seguimiento       indicacion_seguimiento[]
+  lista_espera                 lista_espera[]
+  orden_compra                 orden_compra[]
+  paciente_organizacion        paciente_organizacion[]
+  paciente_seguro              paciente_seguro[]
+  plan_seguimiento             plan_seguimiento[]
+  precio_especial_paciente     precio_especial_paciente[]
+  reclamacion_seguro           reclamacion_seguro[]
+
+  @@index([dpi], map: "idx_paciente_dpi", where: raw("(dpi IS NOT NULL)"))
+  @@index([nit], map: "idx_paciente_nit", where: raw("(nit IS NOT NULL)"))
+  @@index([nombre, apellido], map: "idx_paciente_nombre")
+  @@index([telefono], map: "idx_paciente_telefono", where: raw("(telefono IS NOT NULL)"))
+}
+
+model paciente_organizacion {
+  id                String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paciente_id       String       @db.Uuid
+  organizacion_id   String       @db.Uuid
+  numero_expediente String?      @db.VarChar(50)
+  fecha_registro    DateTime?    @default(now()) @db.Timestamp(6)
+  activo            Boolean?     @default(true)
+  organizacion      organizacion @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente          paciente     @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([paciente_id, organizacion_id])
+  @@index([organizacion_id], map: "idx_paciente_org")
+}
+
+model paciente_seguro {
+  id              String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paciente_id     String      @db.Uuid
+  aseguradora_id  String      @db.Uuid
+  numero_poliza   String      @db.VarChar(80)
+  tipo_plan       String?     @db.VarChar(100)
+  vigencia_inicio DateTime?   @db.Date
+  vigencia_fin    DateTime?   @db.Date
+  activo          Boolean?    @default(true)
+  created_at      DateTime?   @default(now()) @db.Timestamp(6)
+  deleted         Boolean?    @default(false)
+  deleted_at      DateTime?   @db.Timestamp(6)
+  aseguradora     aseguradora @relation(fields: [aseguradora_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente        paciente    @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([paciente_id], map: "idx_paciente_seguro_paciente")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model pago {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  factura_id String    @db.Uuid
+  monto      Decimal   @db.Decimal(12, 2)
+  fecha      DateTime  @default(now()) @db.Timestamp(6)
+  medio      String    @db.VarChar(30)
+  referencia String?   @db.VarChar(200)
+  notas      String?
+  usuario_id String    @db.Uuid
+  anulado    Boolean?  @default(false)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  deleted    Boolean?  @default(false)
+  deleted_at DateTime? @db.Timestamp(6)
+  factura    factura   @relation(fields: [factura_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario    usuario   @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([factura_id], map: "idx_pago_factura")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model plan_seguimiento {
+  id                                               String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paciente_id                                      String                       @db.Uuid
+  organizacion_id                                  String                       @db.Uuid
+  medico_id                                        String                       @db.Uuid
+  encuentro_origen_id                              String?                      @db.Uuid
+  nombre                                           String                       @db.VarChar(200)
+  indicacion_medico                                String?
+  diagnostico_asociado                             String?                      @db.VarChar(300)
+  codigo_icd10                                     String?                      @db.VarChar(20)
+  frecuencia_dias                                  Int?
+  descripcion                                      String?
+  fecha_inicio                                     DateTime                     @default(dbgenerated("CURRENT_DATE")) @db.Date
+  fecha_fin_estimada                               DateTime?                    @db.Date
+  completado_por                                   String?                      @db.Uuid
+  fecha_completado                                 DateTime?                    @db.Timestamp(6)
+  notas_secretaria                                 String?
+  estado                                           String                       @default("borrador") @db.VarChar(20)
+  motivo_cierre                                    String?
+  deleted                                          Boolean?                     @default(false)
+  deleted_at                                       DateTime?                    @db.Timestamp(6)
+  created_at                                       DateTime?                    @default(now()) @db.Timestamp(6)
+  updated_at                                       DateTime?                    @default(now()) @db.Timestamp(6)
+  alerta_preventiva                                alerta_preventiva[]
+  indicacion_seguimiento                           indicacion_seguimiento[]
+  usuario_plan_seguimiento_completado_porTousuario usuario?                     @relation("plan_seguimiento_completado_porTousuario", fields: [completado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro                                        encuentro?                   @relation(fields: [encuentro_origen_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario_plan_seguimiento_medico_idTousuario      usuario                      @relation("plan_seguimiento_medico_idTousuario", fields: [medico_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion                                     organizacion                 @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente                                         paciente                     @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plan_seguimiento_actividad                       plan_seguimiento_actividad[]
+
+  @@index([organizacion_id, estado], map: "idx_plan_activos", where: raw("(((estado)::text = 'activo'::text) AND (deleted = false))"))
+  @@index([estado], map: "idx_plan_estado")
+  @@index([medico_id], map: "idx_plan_medico")
+  @@index([organizacion_id], map: "idx_plan_org")
+  @@index([paciente_id], map: "idx_plan_paciente")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model plan_seguimiento_actividad {
+  id                                                         String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  plan_id                                                    String                  @db.Uuid
+  numero_orden                                               Int
+  tipo                                                       String                  @db.VarChar(30)
+  descripcion                                                String                  @db.VarChar(300)
+  fecha_programada                                           DateTime?               @db.Date
+  fecha_limite                                               DateTime?               @db.Date
+  dias_desde_inicio                                          Int?
+  instrucciones_paciente                                     String?
+  requiere_preparacion                                       Boolean?                @default(false)
+  detalle_preparacion                                        String?
+  creada_por                                                 String?                 @db.Uuid
+  indicacion_id                                              String?                 @db.Uuid
+  cita_id                                                    String?                 @db.Uuid
+  encuentro_id                                               String?                 @db.Uuid
+  estudio_id                                                 String?                 @db.Uuid
+  estado                                                     String                  @default("pendiente") @db.VarChar(20)
+  gestionada_por                                             String?                 @db.Uuid
+  fecha_gestion                                              DateTime?               @db.Timestamp(6)
+  resultado_resumen                                          String?
+  notas                                                      String?
+  deleted                                                    Boolean?                @default(false)
+  deleted_at                                                 DateTime?               @db.Timestamp(6)
+  created_at                                                 DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at                                                 DateTime?               @default(now()) @db.Timestamp(6)
+  alerta_preventiva                                          alerta_preventiva[]
+  cita                                                       cita?                   @relation(fields: [cita_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario_plan_seguimiento_actividad_creada_porTousuario     usuario?                @relation("plan_seguimiento_actividad_creada_porTousuario", fields: [creada_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro                                                  encuentro?              @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  estudio_solicitado                                         estudio_solicitado?     @relation(fields: [estudio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario_plan_seguimiento_actividad_gestionada_porTousuario usuario?                @relation("plan_seguimiento_actividad_gestionada_porTousuario", fields: [gestionada_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  indicacion_seguimiento                                     indicacion_seguimiento? @relation(fields: [indicacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plan_seguimiento                                           plan_seguimiento        @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([estado], map: "idx_plan_act_estado")
+  @@index([fecha_programada], map: "idx_plan_act_fecha")
+  @@index([plan_id, estado, fecha_programada], map: "idx_plan_act_pendientes", where: raw("(((estado)::text = ANY ((ARRAY['pendiente'::character varying, 'indicacion_creada'::character varying])::text[])) AND (deleted = false))"))
+  @@index([plan_id], map: "idx_plan_act_plan")
+}
+
+model plantilla_especialidad {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id String       @db.Uuid
+  especialidad    String       @db.VarChar(100)
+  nombre          String       @db.VarChar(150)
+  secciones       Json         @default("[]")
+  activo          Boolean?     @default(true)
+  created_at      DateTime?    @default(now()) @db.Timestamp(6)
+  deleted         Boolean?     @default(false)
+  deleted_at      DateTime?    @db.Timestamp(6)
+  encuentro       encuentro[]
+  organizacion    organizacion @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model plantilla_recordatorio {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id String       @db.Uuid
+  canal           String       @db.VarChar(20)
+  horas_antes     Int          @default(24)
+  asunto          String?      @db.VarChar(200)
+  texto           String
+  activo          Boolean?     @default(true)
+  created_at      DateTime?    @default(now()) @db.Timestamp(6)
+  deleted         Boolean?     @default(false)
+  deleted_at      DateTime?    @db.Timestamp(6)
+  organizacion    organizacion @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model politica_descuento {
+  id                     String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id        String               @db.Uuid
+  nombre                 String               @db.VarChar(200)
+  descripcion            String?
+  tipo_descuento         String               @db.VarChar(20)
+  valor                  Decimal              @db.Decimal(12, 2)
+  aplica_a               String?              @default("todo") @db.VarChar(30)
+  categoria_aplicable    String?              @db.VarChar(30)
+  servicio_id            String?              @db.Uuid
+  monto_minimo           Decimal?             @db.Decimal(12, 2)
+  monto_maximo_descuento Decimal?             @db.Decimal(12, 2)
+  vigencia_inicio        DateTime?            @db.Date
+  vigencia_fin           DateTime?            @db.Date
+  requiere_aprobacion    Boolean?             @default(false)
+  aprobador_rol          String?              @db.VarChar(80)
+  activo                 Boolean?             @default(true)
+  deleted                Boolean?             @default(false)
+  deleted_at             DateTime?            @db.Timestamp(6)
+  created_at             DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?            @default(now()) @db.Timestamp(6)
+  descuento_aplicado     descuento_aplicado[]
+  descuento_paciente     descuento_paciente[]
+  organizacion           organizacion         @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalogo_servicio      catalogo_servicio?   @relation(fields: [servicio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([organizacion_id, activo], map: "idx_politica_desc_activa", where: raw("((activo = true) AND (deleted = false))"))
+  @@index([organizacion_id], map: "idx_politica_desc_org")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model precio_especial_paciente {
+  id                 String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id    String               @db.Uuid
+  paciente_id        String               @db.Uuid
+  servicio_id        String               @db.Uuid
+  precio_especial    Decimal              @db.Decimal(12, 2)
+  motivo             String?
+  autorizado_por     String?              @db.Uuid
+  vigencia_inicio    DateTime?            @default(dbgenerated("CURRENT_DATE")) @db.Date
+  vigencia_fin       DateTime?            @db.Date
+  activo             Boolean?             @default(true)
+  deleted            Boolean?             @default(false)
+  deleted_at         DateTime?            @db.Timestamp(6)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  descuento_aplicado descuento_aplicado[]
+  usuario            usuario?             @relation(fields: [autorizado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion       organizacion         @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente           paciente             @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  catalogo_servicio  catalogo_servicio    @relation(fields: [servicio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([organizacion_id, paciente_id, servicio_id])
+  @@index([paciente_id, activo], map: "idx_precio_esp_activo", where: raw("((activo = true) AND (deleted = false))"))
+  @@index([paciente_id], map: "idx_precio_esp_paciente")
+  @@index([servicio_id], map: "idx_precio_esp_servicio")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model prescripcion {
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id     String    @db.Uuid
+  producto_id      String?   @db.Uuid
+  medicamento      String    @db.VarChar(300)
+  principio_activo String?   @db.VarChar(200)
+  dosis            String    @db.VarChar(100)
+  via              String?   @db.VarChar(50)
+  frecuencia       String    @db.VarChar(100)
+  duracion         String?   @db.VarChar(100)
+  cantidad         Int?
+  indicaciones     String?
+  estado           String?   @default("activa") @db.VarChar(20)
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  deleted          Boolean?  @default(false)
+  deleted_at       DateTime? @db.Timestamp(6)
+  producto         producto? @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescripcion_producto")
+  encuentro        encuentro @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([encuentro_id], map: "idx_prescripcion_encuentro")
+  @@index([producto_id], map: "idx_prescripcion_producto", where: raw("(producto_id IS NOT NULL)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model producto {
+  id                     String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id        String                  @db.Uuid
+  codigo                 String                  @db.VarChar(50)
+  nombre                 String                  @db.VarChar(300)
+  presentacion           String?                 @db.VarChar(100)
+  unidad_medida          String?                 @db.VarChar(30)
+  categoria              String                  @db.VarChar(30)
+  principio_activo       String?                 @db.VarChar(200)
+  requiere_refrigeracion Boolean?                @default(false)
+  requiere_receta        Boolean?                @default(false)
+  vida_util_dias         Int?
+  stock_minimo           Int?                    @default(0)
+  activo                 Boolean?                @default(true)
+  created_at             DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?               @default(now()) @db.Timestamp(6)
+  deleted                Boolean?                @default(false)
+  deleted_at             DateTime?               @db.Timestamp(6)
+  lote                   lote[]
+  movimiento_inventario  movimiento_inventario[]
+  orden_compra_detalle   orden_compra_detalle[]
+  prescripcion           prescripcion[]
+  organizacion           organizacion            @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  proveedor_producto     proveedor_producto[]
+  recepcion_compra       recepcion_compra[]
+  stock                  stock[]
+
+  @@unique([organizacion_id, codigo])
+  @@index([categoria], map: "idx_producto_categoria")
+  @@index([organizacion_id], map: "idx_producto_organizacion")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model proveedor {
+  id                           String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id              String               @db.Uuid
+  nombre                       String               @db.VarChar(200)
+  nit                          String?              @db.VarChar(20)
+  direccion                    String?
+  telefono                     String?              @db.VarChar(30)
+  telefono_secundario          String?              @db.VarChar(30)
+  email                        String?              @db.VarChar(200)
+  contacto_nombre              String?              @db.VarChar(150)
+  contacto_telefono            String?              @db.VarChar(30)
+  sitio_web                    String?              @db.VarChar(300)
+  categoria                    String?              @db.VarChar(50)
+  tiempo_entrega_promedio_dias Int?
+  condiciones_pago             String?
+  notas                        String?
+  calificacion                 Int?
+  activo                       Boolean?             @default(true)
+  deleted                      Boolean?             @default(false)
+  deleted_at                   DateTime?            @db.Timestamp(6)
+  created_at                   DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime?            @default(now()) @db.Timestamp(6)
+  orden_compra                 orden_compra[]
+  organizacion                 organizacion         @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  proveedor_producto           proveedor_producto[]
+
+  @@index([organizacion_id], map: "idx_proveedor_org")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model proveedor_producto {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  proveedor_id        String    @db.Uuid
+  producto_id         String    @db.Uuid
+  codigo_proveedor    String?   @db.VarChar(50)
+  precio_compra       Decimal   @db.Decimal(12, 2)
+  moneda              String?   @default("GTQ") @db.VarChar(10)
+  tiempo_entrega_dias Int?
+  cantidad_minima     Int?      @default(1)
+  notas               String?
+  activo              Boolean?  @default(true)
+  deleted             Boolean?  @default(false)
+  deleted_at          DateTime? @db.Timestamp(6)
+  created_at          DateTime? @default(now()) @db.Timestamp(6)
+  updated_at          DateTime? @default(now()) @db.Timestamp(6)
+  producto            producto  @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  proveedor           proveedor @relation(fields: [proveedor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([proveedor_id, producto_id])
+  @@index([producto_id], map: "idx_proveedor_prod_producto")
+  @@index([proveedor_id], map: "idx_proveedor_prod_proveedor")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model recepcion_compra {
+  id                    String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orden_compra_id       String                 @db.Uuid
+  detalle_id            String                 @db.Uuid
+  producto_id           String                 @db.Uuid
+  cantidad_recibida     Decimal                @db.Decimal(12, 2)
+  lote_id               String?                @db.Uuid
+  bodega_destino_id     String                 @db.Uuid
+  estado_producto       String?                @default("conforme") @db.VarChar(30)
+  notas                 String?
+  recibido_por          String                 @db.Uuid
+  movimiento_id         String?                @db.Uuid
+  fecha                 DateTime               @default(now()) @db.Timestamp(6)
+  created_at            DateTime?              @default(now()) @db.Timestamp(6)
+  bodega                bodega                 @relation(fields: [bodega_destino_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orden_compra_detalle  orden_compra_detalle   @relation(fields: [detalle_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lote                  lote?                  @relation(fields: [lote_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  movimiento_inventario movimiento_inventario? @relation(fields: [movimiento_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orden_compra          orden_compra           @relation(fields: [orden_compra_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  producto              producto               @relation(fields: [producto_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario               usuario                @relation(fields: [recibido_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([detalle_id], map: "idx_recepcion_detalle")
+  @@index([orden_compra_id], map: "idx_recepcion_orden")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model reclamacion_seguro {
+  id                    String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id       String       @db.Uuid
+  paciente_id           String       @db.Uuid
+  aseguradora_id        String       @db.Uuid
+  encuentro_id          String?      @db.Uuid
+  factura_id            String?      @db.Uuid
+  numero_poliza         String       @db.VarChar(80)
+  fecha_servicio        DateTime     @db.Date
+  diagnostico_principal String?      @db.VarChar(300)
+  codigo_icd10          String?      @db.VarChar(20)
+  servicios_detalle     Json?        @default("[]")
+  monto_reclamado       Decimal      @db.Decimal(12, 2)
+  monto_aprobado        Decimal?     @db.Decimal(12, 2)
+  estado                String       @default("pendiente") @db.VarChar(20)
+  motivo_rechazo        String?
+  fecha_envio           DateTime?    @db.Timestamp(6)
+  fecha_respuesta       DateTime?    @db.Timestamp(6)
+  notas                 String?
+  created_by            String?      @db.Uuid
+  created_at            DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at            DateTime?    @default(now()) @db.Timestamp(6)
+  deleted               Boolean?     @default(false)
+  deleted_at            DateTime?    @db.Timestamp(6)
+  aseguradora           aseguradora  @relation(fields: [aseguradora_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario               usuario?     @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  encuentro             encuentro?   @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  factura               factura?     @relation(fields: [factura_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion          organizacion @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  paciente              paciente     @relation(fields: [paciente_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([aseguradora_id], map: "idx_reclamacion_aseguradora")
+  @@index([estado], map: "idx_reclamacion_estado")
+  @@index([paciente_id], map: "idx_reclamacion_paciente")
+}
+
+model regla_disponibilidad {
+  id              String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  usuario_id      String      @db.Uuid
+  consultorio_id  String      @db.Uuid
+  franjas         Json        @default("[]")
+  excepciones     Json?       @default("[]")
+  vigencia_inicio DateTime?   @db.Date
+  vigencia_fin    DateTime?   @db.Date
+  created_at      DateTime?   @default(now()) @db.Timestamp(6)
+  deleted         Boolean?    @default(false)
+  deleted_at      DateTime?   @db.Timestamp(6)
+  consultorio     consultorio @relation(fields: [consultorio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario         usuario     @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rol {
+  id              String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id String       @db.Uuid
+  nombre          String       @db.VarChar(80)
+  descripcion     String?
+  permisos        Json         @default("{}")
+  created_at      DateTime?    @default(now()) @db.Timestamp(6)
+  deleted         Boolean?     @default(false)
+  deleted_at      DateTime?    @db.Timestamp(6)
+  organizacion    organizacion @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario         usuario[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sede {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id String         @db.Uuid
+  nombre          String         @db.VarChar(150)
+  direccion       String?
+  telefono        String?        @db.VarChar(30)
+  horarios        Json?
+  activo          Boolean?       @default(true)
+  created_at      DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?      @default(now()) @db.Timestamp(6)
+  deleted         Boolean?       @default(false)
+  deleted_at      DateTime?      @db.Timestamp(6)
+  bodega          bodega[]
+  cita            cita[]
+  consultorio     consultorio[]
+  encuentro       encuentro[]
+  factura         factura[]
+  orden_compra    orden_compra[]
+  organizacion    organizacion   @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario_sede    usuario_sede[]
+
+  @@index([organizacion_id], map: "idx_sede_organizacion")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sesion_telemedicina {
+  id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  encuentro_id     String         @db.Uuid
+  proveedor        String?        @db.VarChar(30)
+  room_id          String?        @db.VarChar(200)
+  url_paciente     String?        @db.VarChar(1000)
+  fecha_inicio     DateTime?      @db.Timestamp(6)
+  fecha_fin        DateTime?      @db.Timestamp(6)
+  duracion_minutos Int?
+  estado           String         @default("programada") @db.VarChar(20)
+  calidad_conexion String?        @db.VarChar(20)
+  created_at       DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?      @default(now()) @db.Timestamp(6)
+  deleted          Boolean?       @default(false)
+  deleted_at       DateTime?      @db.Timestamp(6)
+  grabacion        grabacion[]
+  mensaje_chat     mensaje_chat[]
+  encuentro        encuentro      @relation(fields: [encuentro_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([encuentro_id], map: "idx_sesion_encuentro")
+}
+
+model tipo_cita {
+  id                  String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id     String         @db.Uuid
+  nombre              String         @db.VarChar(100)
+  duracion_minutos    Int            @default(30)
+  color               String?        @db.VarChar(10)
+  aplica_telemedicina Boolean?       @default(false)
+  activo              Boolean?       @default(true)
+  created_at          DateTime?      @default(now()) @db.Timestamp(6)
+  deleted             Boolean?       @default(false)
+  deleted_at          DateTime?      @db.Timestamp(6)
+  cita                cita[]
+  lista_espera        lista_espera[]
+  organizacion        organizacion   @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model usuario {
+  id                                                                            String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizacion_id                                                               String                       @db.Uuid
+  rol_id                                                                        String                       @db.Uuid
+  email                                                                         String                       @unique @db.VarChar(200)
+  password_hash                                                                 String                       @db.VarChar(255)
+  nombre                                                                        String                       @db.VarChar(150)
+  apellido                                                                      String                       @db.VarChar(150)
+  especialidad                                                                  String?                      @db.VarChar(100)
+  numero_colegiado                                                              String?                      @db.VarChar(50)
+  telefono                                                                      String?                      @db.VarChar(30)
+  estado                                                                        String?                      @default("activo") @db.VarChar(20)
+  ultimo_acceso                                                                 DateTime?                    @db.Timestamp(6)
+  created_at                                                                    DateTime?                    @default(now()) @db.Timestamp(6)
+  updated_at                                                                    DateTime?                    @default(now()) @db.Timestamp(6)
+  deleted                                                                       Boolean?                     @default(false)
+  deleted_at                                                                    DateTime?                    @db.Timestamp(6)
+  alerta_preventiva                                                             alerta_preventiva[]
+  archivo_adjunto                                                               archivo_adjunto[]
+  audit_log                                                                     audit_log[]
+  cita                                                                          cita[]
+  descuento_aplicado                                                            descuento_aplicado[]
+  descuento_paciente                                                            descuento_paciente[]
+  encuentro                                                                     encuentro[]
+  evolucion                                                                     evolucion[]
+  factura                                                                       factura[]
+  firma                                                                         firma[]
+  indicacion_seguimiento_indicacion_seguimiento_atendida_porTousuario           indicacion_seguimiento[]     @relation("indicacion_seguimiento_atendida_porTousuario")
+  indicacion_seguimiento_indicacion_seguimiento_medico_idTousuario              indicacion_seguimiento[]     @relation("indicacion_seguimiento_medico_idTousuario")
+  lista_espera                                                                  lista_espera[]
+  mensaje_chat                                                                  mensaje_chat[]
+  movimiento_inventario                                                         movimiento_inventario[]
+  orden_compra_orden_compra_aprobado_porTousuario                               orden_compra[]               @relation("orden_compra_aprobado_porTousuario")
+  orden_compra_orden_compra_solicitado_porTousuario                             orden_compra[]               @relation("orden_compra_solicitado_porTousuario")
+  orden_compra_detalle                                                          orden_compra_detalle[]
+  pago                                                                          pago[]
+  plan_seguimiento_plan_seguimiento_completado_porTousuario                     plan_seguimiento[]           @relation("plan_seguimiento_completado_porTousuario")
+  plan_seguimiento_plan_seguimiento_medico_idTousuario                          plan_seguimiento[]           @relation("plan_seguimiento_medico_idTousuario")
+  plan_seguimiento_actividad_plan_seguimiento_actividad_creada_porTousuario     plan_seguimiento_actividad[] @relation("plan_seguimiento_actividad_creada_porTousuario")
+  plan_seguimiento_actividad_plan_seguimiento_actividad_gestionada_porTousuario plan_seguimiento_actividad[] @relation("plan_seguimiento_actividad_gestionada_porTousuario")
+  precio_especial_paciente                                                      precio_especial_paciente[]
+  recepcion_compra                                                              recepcion_compra[]
+  reclamacion_seguro                                                            reclamacion_seguro[]
+  regla_disponibilidad                                                          regla_disponibilidad[]
+  organizacion                                                                  organizacion                 @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rol                                                                           rol                          @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario_sede                                                                  usuario_sede[]
+
+  @@index([email], map: "idx_usuario_email")
+  @@index([organizacion_id], map: "idx_usuario_organizacion")
+  @@index([rol_id], map: "idx_usuario_rol")
+}
+
+model usuario_sede {
+  id             String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  usuario_id     String       @db.Uuid
+  sede_id        String       @db.Uuid
+  consultorio_id String?      @db.Uuid
+  created_at     DateTime?    @default(now()) @db.Timestamp(6)
+  consultorio    consultorio? @relation(fields: [consultorio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sede           sede         @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuario        usuario      @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([usuario_id, sede_id, consultorio_id])
+  @@index([sede_id], map: "idx_usuario_sede_sede")
+  @@index([usuario_id], map: "idx_usuario_sede_usuario")
+}
