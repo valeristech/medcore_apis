@@ -128,6 +128,43 @@ export class AuthService {
     const { password_hash: _p, ...datosSeguros } = usuario;
     return datosSeguros;
   }
+
+  async registrarLoginExitoso(input: {
+    usuarioId: string;
+    organizacionId: string;
+    ip?: string;
+    userAgent?: string;
+    requestId?: string;
+  }) {
+    const fecha = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.usuario.update({
+        where: { id: input.usuarioId },
+        data: {
+          ultimo_acceso: fecha,
+          updated_at: fecha,
+        },
+      });
+
+      await tx.audit_log.create({
+        data: {
+          organizacion_id: input.organizacionId,
+          usuario_id: input.usuarioId,
+          accion: 'login',
+          recurso: 'auth',
+          recurso_id: input.usuarioId,
+          descripcion: 'Inicio de sesión exitoso.',
+          datos_despues: {
+            event: 'login_success',
+            requestId: input.requestId,
+          },
+          ip: input.ip,
+          user_agent: input.userAgent,
+          fecha,
+        },
+      });
+    });
+  }
 }
 
 export const authService = new AuthService();

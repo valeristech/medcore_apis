@@ -32,6 +32,14 @@ export function createAuthController(env: AppEnv) {
         permisos: usuario.rol?.permisos,
       });
 
+      await authService.registrarLoginExitoso({
+        usuarioId: usuario.id,
+        organizacionId: usuario.organizacion_id,
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+        requestId,
+      });
+
       const accessToken = await reply.jwtSign(payload);
       const { raw: refreshToken } = await authService.crearRefreshToken(
         usuario.id,

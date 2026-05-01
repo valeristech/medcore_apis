@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { writeAuditLog } from '../../core/audit/auditLog.js';
 import { sendOk } from '../../core/http/response.js';
 import { sedeService } from './sede.service.js';
 import type {
@@ -24,6 +25,15 @@ export const sedeController = {
       request.user.organizacion_id,
       request.body as CreateSedeInput,
     );
+    await writeAuditLog({
+      request,
+      organizacionId: request.user.organizacion_id,
+      accion: 'create',
+      recurso: 'sede',
+      recursoId: sede.id,
+      descripcion: 'Creación de sede.',
+      datosDespues: sede,
+    });
     return sendOk(reply, request.requestId, { sede }, 201);
   },
 
@@ -43,17 +53,39 @@ export const sedeController = {
 
   async updateSede(request: FastifyRequest, reply: FastifyReply) {
     const { sedeId } = request.params as SedeParams;
+    const before = await sedeService.getSede(sedeId, request.user.organizacion_id);
     const sede = await sedeService.updateSede(
       sedeId,
       request.user.organizacion_id,
       request.body as UpdateSedeInput,
     );
+    await writeAuditLog({
+      request,
+      organizacionId: request.user.organizacion_id,
+      accion: 'update',
+      recurso: 'sede',
+      recursoId: sedeId,
+      descripcion: 'Actualización de sede.',
+      datosAntes: before,
+      datosDespues: sede,
+    });
     return sendOk(reply, request.requestId, { sede });
   },
 
   async deleteSede(request: FastifyRequest, reply: FastifyReply) {
     const { sedeId } = request.params as SedeParams;
+    const before = await sedeService.getSede(sedeId, request.user.organizacion_id);
     await sedeService.deleteSede(sedeId, request.user.organizacion_id);
+    await writeAuditLog({
+      request,
+      organizacionId: request.user.organizacion_id,
+      accion: 'delete',
+      recurso: 'sede',
+      recursoId: sedeId,
+      descripcion: 'Soft delete de sede.',
+      datosAntes: before,
+      datosDespues: { deleted: true, deleted_at: new Date().toISOString(), activo: false },
+    });
     return sendOk(reply, request.requestId, { ok: true });
   },
 
@@ -78,6 +110,15 @@ export const sedeController = {
       request.user.organizacion_id,
       request.body as CreateConsultorioInput,
     );
+    await writeAuditLog({
+      request,
+      organizacionId: request.user.organizacion_id,
+      accion: 'create',
+      recurso: 'consultorio',
+      recursoId: consultorio.id,
+      descripcion: 'Creación de consultorio.',
+      datosDespues: consultorio,
+    });
     return sendOk(reply, request.requestId, { consultorio }, 201);
   },
 
@@ -89,17 +130,39 @@ export const sedeController = {
 
   async updateConsultorio(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
+    const before = await sedeService.getConsultorio(id, request.user.organizacion_id);
     const consultorio = await sedeService.updateConsultorioById(
       id,
       request.user.organizacion_id,
       request.body as UpdateConsultorioInput,
     );
+    await writeAuditLog({
+      request,
+      organizacionId: request.user.organizacion_id,
+      accion: 'update',
+      recurso: 'consultorio',
+      recursoId: id,
+      descripcion: 'Actualización de consultorio.',
+      datosAntes: before,
+      datosDespues: consultorio,
+    });
     return sendOk(reply, request.requestId, { consultorio });
   },
 
   async deleteConsultorio(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
+    const before = await sedeService.getConsultorio(id, request.user.organizacion_id);
     await sedeService.deleteConsultorioById(id, request.user.organizacion_id);
+    await writeAuditLog({
+      request,
+      organizacionId: request.user.organizacion_id,
+      accion: 'delete',
+      recurso: 'consultorio',
+      recursoId: id,
+      descripcion: 'Soft delete de consultorio.',
+      datosAntes: before,
+      datosDespues: { deleted: true, deleted_at: new Date().toISOString(), activo: false },
+    });
     return sendOk(reply, request.requestId, { ok: true });
   },
 };
