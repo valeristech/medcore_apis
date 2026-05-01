@@ -82,7 +82,7 @@ const idParamSchema = {
 
 export const listOrganizacionesSchema = {
   schema: {
-    tags: ['Core / Plataforma'],
+    tags: ['Core / Organizaciones'],
     summary: 'Listar organizaciones (scope tenant)',
     description:
       'Devuelve organizaciones visibles para el tenant autenticado. En el estado actual, retorna su propia organización.',
@@ -114,7 +114,7 @@ export const listOrganizacionesSchema = {
 
 export const searchOrganizacionesSchema = {
   schema: {
-    tags: ['Core / Plataforma'],
+    tags: ['Core / Organizaciones'],
     summary: 'Buscar organizaciones (scope tenant)',
     description:
       'Respeta el tenant del JWT (organizacion_id). Filtros: razon_social, nit, direccion. Paginación: page (default 1), pageSize (default 20, max 100). Ordenamiento: sortBy (razon_social|nit|direccion|created_at|updated_at) y sortOrder (asc|desc, default desc).',
@@ -123,17 +123,23 @@ export const searchOrganizacionesSchema = {
       type: 'object',
       additionalProperties: false,
       properties: {
-        razon_social: { type: 'string', minLength: 1, maxLength: 200 },
-        nit: { type: 'string', minLength: 1, maxLength: 20 },
-        direccion: { type: 'string', minLength: 1 },
-        page: { type: 'integer', minimum: 1, default: 1 },
-        pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+        razon_social: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 200,
+          description: 'Filtro por razón social (contains, case-insensitive).',
+        },
+        nit: { type: 'string', minLength: 1, maxLength: 20, description: 'Filtro por NIT (contains, case-insensitive).' },
+        direccion: { type: 'string', minLength: 1, description: 'Filtro por dirección (contains, case-insensitive).' },
+        page: { type: 'integer', minimum: 1, default: 1, description: 'Número de página (base 1).' },
+        pageSize: { type: 'integer', minimum: 1, maximum: 100, default: 20, description: 'Tamaño de página (máximo 100).' },
         sortBy: {
           type: 'string',
           enum: ['razon_social', 'nit', 'direccion', 'created_at', 'updated_at'],
           default: 'created_at',
+          description: 'Campo por el cual ordenar.',
         },
-        sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
+        sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc', description: 'Dirección del ordenamiento.' },
       },
     },
     response: {
@@ -155,21 +161,22 @@ export const searchOrganizacionesSchema = {
                 required: ['page', 'pageSize', 'total', 'totalPages'],
                 properties: {
                   page: { type: 'integer' },
-                  pageSize: { type: 'integer' },
-                  total: { type: 'integer' },
-                  totalPages: { type: 'integer' },
+                  pageSize: { type: 'integer', description: 'Cantidad de registros por página.' },
+                  total: { type: 'integer', description: 'Total de registros que cumplen filtros.' },
+                  totalPages: { type: 'integer', description: 'Total de páginas disponibles.' },
                 },
               },
               sort: {
                 type: 'object',
                 required: ['sortBy', 'sortOrder'],
                 properties: {
-                  sortBy: { type: 'string' },
-                  sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+                  sortBy: { type: 'string', description: 'Campo utilizado para ordenar.' },
+                  sortOrder: { type: 'string', enum: ['asc', 'desc'], description: 'Dirección aplicada en el orden.' },
                 },
               },
               filters: {
                 type: 'object',
+                description: 'Echo de filtros aplicados en la consulta.',
                 properties: {
                   razon_social: { type: 'string' },
                   nit: { type: 'string' },
@@ -190,7 +197,7 @@ export const searchOrganizacionesSchema = {
 
 export const getOrganizacionSchema = {
   schema: {
-    tags: ['Core / Plataforma'],
+    tags: ['Core / Organizaciones'],
     summary: 'Obtener organización por ID',
     security: [{ bearerAuth: [] }],
     params: idParamSchema,
@@ -219,7 +226,7 @@ export const getOrganizacionSchema = {
 
 export const createOrganizacionSchema = {
   schema: {
-    tags: ['Core / Plataforma'],
+    tags: ['Core / Organizaciones'],
     summary: 'Crear organización',
     description: 'Crea una organización con NIT único y configuración FEL opcional.',
     security: [{ bearerAuth: [] }],
@@ -267,7 +274,7 @@ export const createOrganizacionSchema = {
 
 export const updateOrganizacionSchema = {
   schema: {
-    tags: ['Core / Plataforma'],
+    tags: ['Core / Organizaciones'],
     summary: 'Actualizar organización',
     security: [{ bearerAuth: [] }],
     params: idParamSchema,
@@ -316,7 +323,7 @@ export const updateOrganizacionSchema = {
 
 export const deleteOrganizacionSchema = {
   schema: {
-    tags: ['Core / Plataforma'],
+    tags: ['Core / Organizaciones'],
     summary: 'Eliminar organización (soft delete)',
     security: [{ bearerAuth: [] }],
     params: idParamSchema,

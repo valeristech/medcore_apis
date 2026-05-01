@@ -14,14 +14,21 @@ export async function registerOpenApi(app: FastifyInstance) {
       tags: [
         { name: 'Sistema', description: 'Salud del servicio' },
         {
-          name: 'Core / Plataforma',
-          description:
-            'Gestión base multi-tenant: organizaciones, usuarios, roles, sedes y permisos.',
-        },
-        {
           name: 'Autenticación',
           description:
             'Login, refresh, logout y JWT. El access token incluye permisos del rol para RBAC.',
+        },
+        {
+          name: 'Core / Organizaciones',
+          description: 'Gestión de organizaciones (tenant), filtros y mantenimiento.',
+        },
+        {
+          name: 'Core / Sedes',
+          description: 'Gestión de sedes por organización.',
+        },
+        {
+          name: 'Core / Consultorios',
+          description: 'Gestión de consultorios por sede.',
         },
       ],
       components: {
