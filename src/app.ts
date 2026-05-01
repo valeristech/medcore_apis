@@ -6,6 +6,7 @@ import { registerAuditAccess } from './core/plugins/auditAccess.js';
 import { registerErrorHandler } from './core/plugins/errorHandler.js';
 import { registerOpenApi, registerScalarDocs } from './core/plugins/openapi.js';
 import { registerRequestContext } from './core/plugins/requestContext.js';
+import { auditLogRoutes } from './modules/audit-log/audit-log.routes.js';
 import { authRoutesPlugin } from './modules/auth/auth.routes.js';
 import { healthRouteSchema } from './modules/health/health.schemas.js';
 import { organizacionRoutes } from './modules/organizaciones/organizacion.routes.js';
@@ -70,6 +71,7 @@ export const buildApp = async (env: AppEnv) => {
   await app.register(roleRoutes, { prefix: '/api' });
   await app.register(sedeRoutes, { prefix: '/api' });
   await app.register(userRoutes, { prefix: '/api' });
+  await app.register(auditLogRoutes, { prefix: '/api' });
 
   await registerScalarDocs(app);
 

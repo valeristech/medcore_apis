@@ -38,6 +38,10 @@ export async function registerOpenApi(app: FastifyInstance) {
           name: 'Core / Usuarios',
           description: 'CRUD de usuarios, asignación usuario_sede, hash de contraseña e invalidación de refresh.',
         },
+        {
+          name: 'Core / Auditoría',
+          description: 'Consulta de eventos de audit_log por tenant.',
+        },
       ],
       components: {
         securitySchemes: {
