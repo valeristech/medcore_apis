@@ -5,6 +5,7 @@ import { disponibilidadController } from './disponibilidad.controller.js';
 import {
   createReglaSchema,
   deleteReglaSchema,
+  getCalendarioSchema,
   getReglaSchema,
   listReglasByUsuarioSchema,
   searchReglasSchema,
@@ -16,6 +17,15 @@ const pAgendaCrear = requirePermission('agenda', 'crear');
 const pAgendaEditar = requirePermission('agenda', 'editar');
 
 export const disponibilidadRoutes: FastifyPluginAsync = async (app) => {
+  app.get(
+    '/calendario',
+    {
+      ...getCalendarioSchema,
+      preHandler: [requireAuth, pAgendaLeer],
+    },
+    disponibilidadController.getCalendario,
+  );
+
   app.get(
     '/reglas/search',
     {

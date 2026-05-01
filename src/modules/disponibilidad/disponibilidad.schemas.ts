@@ -35,6 +35,16 @@ export type SearchReglasQuery = {
   sortOrder?: 'asc' | 'desc';
 };
 
+export type CalendarioQuery = {
+  usuario_id: string;
+  consultorio_id: string;
+  desde: string;
+  hasta: string;
+  slot_minutos?: number;
+  /** IANA (p. ej. `America/Guatemala`). Si se omite, se usa `organizacion.zona_horaria` o Guatemala. */
+  timezone?: string;
+};
+
 const envelopeMeta = {
   type: 'object',
   required: ['requestId'],
@@ -129,6 +139,139 @@ const usuarioIdParam = {
   type: 'object',
   required: ['usuarioId'],
   properties: { usuarioId: { type: 'string' } },
+} as const;
+
+const isoIntervalShape = {
+  type: 'object',
+  required: ['inicio', 'fin'],
+  properties: {
+    inicio: { type: 'string', format: 'date-time' },
+    fin: { type: 'string', format: 'date-time' },
+  },
+} as const;
+
+const diaCalendarioShape = {
+  type: 'object',
+  required: ['fecha', 'dia_semana', 'ventanas', 'huecos_disponibles', 'ocupaciones_dia'],
+  properties: {
+    fecha: { type: 'string', format: 'date' },
+    dia_semana: { type: 'integer', minimum: 0, maximum: 6 },
+    ventanas: { type: 'array', items: isoIntervalShape },
+    huecos_disponibles: { type: 'array', items: isoIntervalShape },
+    ocupaciones_dia: { type: 'array', items: isoIntervalShape },
+  },
+} as const;
+
+const ocupacionCitaShape = {
+  type: 'object',
+  required: ['id', 'fecha_hora_inicio', 'fecha_hora_fin', 'estado', 'tipo_cita_id', 'paciente_id'],
+  properties: {
+    id: { type: 'string' },
+    fecha_hora_inicio: { type: 'string', format: 'date-time' },
+    fecha_hora_fin: { type: 'string', format: 'date-time' },
+    estado: { type: 'string' },
+    tipo_cita_id: { type: 'string' },
+    paciente_id: { type: 'string' },
+    tipo_cita: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        nombre: { type: 'string' },
+        duracion_minutos: { type: 'integer' },
+      },
+    },
+  },
+} as const;
+
+const reglaCalendarioResumenShape = {
+  type: 'object',
+  required: ['id', 'franjas', 'excepciones', 'vigencia_inicio', 'vigencia_fin'],
+  properties: {
+    id: { type: 'string' },
+    franjas: {},
+    excepciones: {},
+    vigencia_inicio: { type: 'string', format: 'date', nullable: true },
+    vigencia_fin: { type: 'string', format: 'date', nullable: true },
+  },
+} as const;
+
+export const getCalendarioSchema = {
+  schema: {
+    tags: ['Agenda / Disponibilidad'],
+    summary: 'Calendario y disponibilidad (reglas + citas, consultas optimizadas)',
+    description:
+      'Una transacción con dos consultas indexadas (`regla_disponibilidad` + `cita`) y cálculo en memoria de ventanas, ocupaciones por día y huecos alineados a `slot_minutos` (10–120, default 30). Excluye citas `cancelada`/`cancelado`. Fechas `desde`/`hasta` son **días calendario locales** en la zona IANA resuelta (query `timezone`, luego `organizacion.zona_horaria`, default `America/Guatemala`). Franjas y excepciones se interpretan en esa misma zona. Máximo 120 días.',
+    security: [{ bearerAuth: [] }],
+    querystring: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['usuario_id', 'consultorio_id', 'desde', 'hasta'],
+      properties: {
+        usuario_id: { type: 'string', description: 'UUID del médico.' },
+        consultorio_id: { type: 'string', description: 'UUID del consultorio.' },
+        desde: { type: 'string', format: 'date', description: 'Inicio del rango (inclusive), YYYY-MM-DD local.' },
+        hasta: { type: 'string', format: 'date', description: 'Fin del rango (inclusive), YYYY-MM-DD local.' },
+        slot_minutos: {
+          type: 'integer',
+          minimum: 10,
+          maximum: 120,
+          default: 30,
+          description: 'Duración de cada hueco libre devuelto en `huecos_disponibles`.',
+        },
+        timezone: {
+          type: 'string',
+          maxLength: 80,
+          description:
+            'Zona IANA (ej. `America/Mexico_City`). Si se omite: `organizacion.zona_horaria` de la BD o `America/Guatemala`.',
+        },
+      },
+    },
+    response: {
+      200: {
+        type: 'object',
+        required: ['success', 'data', 'meta'],
+        properties: {
+          success: { type: 'boolean', enum: [true] },
+          data: {
+            type: 'object',
+            required: [
+              'periodo',
+              'usuario_id',
+              'consultorio_id',
+              'slot_minutos',
+              'reglas',
+              'ocupaciones',
+              'dias',
+            ],
+            properties: {
+              periodo: {
+                type: 'object',
+                required: ['desde', 'hasta', 'timezone', 'interpretacion', 'descripcion'],
+                properties: {
+                  desde: { type: 'string', format: 'date' },
+                  hasta: { type: 'string', format: 'date' },
+                  timezone: { type: 'string', description: 'IANA efectiva usada en el cálculo.' },
+                  interpretacion: { type: 'string', enum: ['IANA'] },
+                  descripcion: { type: 'string' },
+                },
+              },
+              usuario_id: { type: 'string' },
+              consultorio_id: { type: 'string' },
+              slot_minutos: { type: 'integer' },
+              reglas: { type: 'array', items: reglaCalendarioResumenShape },
+              ocupaciones: { type: 'array', items: ocupacionCitaShape },
+              dias: { type: 'array', items: diaCalendarioShape },
+            },
+          },
+          meta: envelopeMeta,
+        },
+      },
+      400: errorEnvelope,
+      401: errorEnvelope,
+      403: errorEnvelope,
+      404: errorEnvelope,
+    },
+  },
 } as const;
 
 export const searchReglasSchema = {

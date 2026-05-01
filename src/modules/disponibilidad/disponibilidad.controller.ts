@@ -3,6 +3,7 @@ import { writeAuditLog } from '../../core/audit/auditLog.js';
 import { sendOk } from '../../core/http/response.js';
 import { disponibilidadService } from './disponibilidad.service.js';
 import type {
+  CalendarioQuery,
   CreateReglaDisponibilidadInput,
   SearchReglasQuery,
   UpdateReglaDisponibilidadInput,
@@ -12,6 +13,22 @@ type IdParams = { id: string };
 type UsuarioParams = { usuarioId: string };
 
 export const disponibilidadController = {
+  async getCalendario(request: FastifyRequest, reply: FastifyReply) {
+    const q = request.query as Record<string, string | undefined>;
+    const slotRaw = q.slot_minutos !== undefined ? Number(q.slot_minutos) : undefined;
+    const payload: CalendarioQuery = {
+      usuario_id: q.usuario_id ?? '',
+      consultorio_id: q.consultorio_id ?? '',
+      desde: q.desde ?? '',
+      hasta: q.hasta ?? '',
+      slot_minutos:
+        slotRaw !== undefined && Number.isFinite(slotRaw) ? slotRaw : undefined,
+      timezone: q.timezone,
+    };
+    const data = await disponibilidadService.getCalendario(request.user.organizacion_id, payload);
+    return sendOk(reply, request.requestId, data);
+  },
+
   async search(request: FastifyRequest, reply: FastifyReply) {
     const result = await disponibilidadService.search(
       request.user.organizacion_id,

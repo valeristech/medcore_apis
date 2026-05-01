@@ -1,7 +1,20 @@
 import type { Prisma } from '@prisma/client';
 import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
+import {
+  assertIsoDateRange,
+  DEFAULT_IANA_TIMEZONE,
+  eachLocalDateInclusive,
+  huecosEnSlots,
+  intervalToIso,
+  isValidIanaTimezone,
+  localRangeToUtcBounds,
+  localWeekdayJs,
+  ocupacionesCitaEnDia,
+  ventanasDesdeReglasParaDia,
+} from './disponibilidad.calendario.js';
 import type {
+  CalendarioQuery,
   CreateReglaDisponibilidadInput,
   ExcepcionInput,
   FranjaInput,
@@ -116,6 +129,22 @@ function tenantReglaWhere(tenantOrgId: string): Prisma.regla_disponibilidadWhere
 }
 
 export class DisponibilidadService {
+  private resolveEffectiveTimezone(
+    queryTz: string | undefined,
+    orgZonaHoraria: string | null | undefined,
+  ): string {
+    const q = queryTz?.trim();
+    if (q) {
+      if (!isValidIanaTimezone(q)) {
+        throw new HttpError(400, 'INVALID_TIMEZONE', `Zona horaria IANA inválida: "${q}".`);
+      }
+      return q;
+    }
+    const o = orgZonaHoraria?.trim();
+    if (o && isValidIanaTimezone(o)) return o;
+    return DEFAULT_IANA_TIMEZONE;
+  }
+
   private async assertUsuarioMedicoTenant(usuarioId: string, tenantOrgId: string) {
     const u = await prisma.usuario.findFirst({
       where: { id: usuarioId, organizacion_id: tenantOrgId, deleted: false },
@@ -290,6 +319,118 @@ export class DisponibilidadService {
       where: { id },
       data: { deleted: true, deleted_at: new Date() },
     });
+  }
+
+  /**
+   * UC-AGE-002: dos lecturas en paralelo (reglas + citas) y composición en memoria del calendario.
+   * Zona horaria: query `timezone` (IANA) → `organizacion.zona_horaria` → `America/Guatemala`.
+   */
+  async getCalendario(tenantOrgId: string, query: CalendarioQuery) {
+    const MAX_DAYS = 120;
+    const slotMinutos = Math.min(120, Math.max(10, query.slot_minutos ?? 30));
+
+    const orgTz = await prisma.organizacion.findFirst({
+      where: { id: tenantOrgId, deleted: false },
+      select: { zona_horaria: true },
+    });
+    const tz = this.resolveEffectiveTimezone(query.timezone, orgTz?.zona_horaria ?? null);
+
+    assertIsoDateRange(query.desde, query.hasta, MAX_DAYS, tz);
+    await this.assertUsuarioMedicoTenant(query.usuario_id, tenantOrgId);
+    await this.assertConsultorioTenant(query.consultorio_id, tenantOrgId);
+
+    const { desdeUtc, hastaUtc } = localRangeToUtcBounds(tz, query.desde, query.hasta);
+
+    const reglaWhere: Prisma.regla_disponibilidadWhereInput = {
+      usuario_id: query.usuario_id,
+      consultorio_id: query.consultorio_id,
+      ...tenantReglaWhere(tenantOrgId),
+    };
+
+    const [reglasRaw, citasRaw] = await prisma.$transaction([
+      prisma.regla_disponibilidad.findMany({
+        where: reglaWhere,
+        select: {
+          id: true,
+          franjas: true,
+          excepciones: true,
+          vigencia_inicio: true,
+          vigencia_fin: true,
+        },
+        orderBy: { created_at: 'asc' },
+      }),
+      prisma.cita.findMany({
+        where: {
+          usuario_id: query.usuario_id,
+          consultorio_id: query.consultorio_id,
+          deleted: false,
+          estado: { notIn: ['cancelada', 'cancelado'] },
+          sede: { organizacion_id: tenantOrgId, deleted: false },
+          fecha_hora_inicio: { lte: hastaUtc },
+          fecha_hora_fin: { gte: desdeUtc },
+        },
+        select: {
+          id: true,
+          fecha_hora_inicio: true,
+          fecha_hora_fin: true,
+          estado: true,
+          tipo_cita_id: true,
+          paciente_id: true,
+          tipo_cita: { select: { nombre: true, duracion_minutos: true } },
+        },
+        orderBy: { fecha_hora_inicio: 'asc' },
+      }),
+    ]);
+
+    const reglasResumen = reglasRaw.map((r) => ({
+      id: r.id,
+      franjas: r.franjas,
+      excepciones: r.excepciones ?? [],
+      vigencia_inicio: toDateOnlyIso(r.vigencia_inicio),
+      vigencia_fin: toDateOnlyIso(r.vigencia_fin),
+    }));
+
+    const ocupaciones = citasRaw.map((c) => ({
+      id: c.id,
+      fecha_hora_inicio: c.fecha_hora_inicio.toISOString(),
+      fecha_hora_fin: c.fecha_hora_fin.toISOString(),
+      estado: c.estado,
+      tipo_cita_id: c.tipo_cita_id,
+      paciente_id: c.paciente_id,
+      tipo_cita: c.tipo_cita,
+    }));
+
+    const fechas = eachLocalDateInclusive(tz, query.desde, query.hasta);
+    const dias = fechas.map((fecha) => {
+      const dow = localWeekdayJs(tz, fecha);
+      const ventanas = ventanasDesdeReglasParaDia(reglasRaw, fecha, tz);
+      const ocupadas = ocupacionesCitaEnDia(fecha, citasRaw, tz);
+      const huecos = huecosEnSlots(ventanas, ocupadas, slotMinutos);
+      return {
+        fecha,
+        dia_semana: dow,
+        ventanas: ventanas.map(intervalToIso),
+        huecos_disponibles: huecos.map(intervalToIso),
+        ocupaciones_dia: ocupadas.map(intervalToIso),
+      };
+    });
+
+    return {
+      periodo: {
+        desde: query.desde,
+        hasta: query.hasta,
+        timezone: tz,
+        interpretacion: 'IANA' as const,
+        descripcion:
+          'Las fechas `desde`/`hasta`, `dia_semana` de las franjas y las excepciones se interpretan en la zona IANA `timezone`. Las horas de respuesta (`inicio`/`fin`) están en ISO-8601 (UTC).',
+      },
+      usuario_id: query.usuario_id,
+      consultorio_id: query.consultorio_id,
+      slot_minutos: slotMinutos,
+      reglas: reglasResumen,
+      ocupaciones,
+      dias,
+    };
   }
 }
 

@@ -45,7 +45,7 @@ export async function registerOpenApi(app: FastifyInstance) {
         {
           name: 'Agenda / Disponibilidad',
           description:
-            'Reglas de disponibilidad por médico y consultorio (`regla_disponibilidad`): franjas recurrentes, excepciones y vigencias.',
+            'Reglas de disponibilidad (`regla_disponibilidad`) y calendario con zona IANA (default Guatemala vía `organizacion.zona_horaria` o `America/Guatemala`): reglas + citas, ventanas y huecos por slot.',
         },
       ],
       components: {
