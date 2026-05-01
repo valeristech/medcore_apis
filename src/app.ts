@@ -11,6 +11,7 @@ import { healthRouteSchema } from './modules/health/health.schemas.js';
 import { organizacionRoutes } from './modules/organizaciones/organizacion.routes.js';
 import { roleRoutes } from './modules/roles/role.routes.js';
 import { sedeRoutes } from './modules/sedes/sede.routes.js';
+import { userRoutes } from './modules/usuarios/user.routes.js';
 
 export const buildApp = async (env: AppEnv) => {
   const logger =
@@ -68,6 +69,7 @@ export const buildApp = async (env: AppEnv) => {
   await app.register(organizacionRoutes, { prefix: '/api/organizaciones' });
   await app.register(roleRoutes, { prefix: '/api' });
   await app.register(sedeRoutes, { prefix: '/api' });
+  await app.register(userRoutes, { prefix: '/api' });
 
   await registerScalarDocs(app);
 

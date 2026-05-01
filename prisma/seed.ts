@@ -15,6 +15,7 @@ const SEED = {
     permisos: {
       auth: ['login', 'refresh', 'logout', 'me'],
       core: ['organizaciones'],
+      usuarios: ['*'],
       sedes: ['*'],
       consultorios: ['*'],
       roles: ['*'],

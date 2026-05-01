@@ -34,6 +34,10 @@ export async function registerOpenApi(app: FastifyInstance) {
           name: 'Core / Roles y Permisos',
           description: 'CRUD de roles, validación de permisos JSON y plantillas clínicas.',
         },
+        {
+          name: 'Core / Usuarios',
+          description: 'CRUD de usuarios, asignación usuario_sede, hash de contraseña e invalidación de refresh.',
+        },
       ],
       components: {
         securitySchemes: {
