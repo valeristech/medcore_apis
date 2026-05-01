@@ -31,6 +31,30 @@ export async function registerErrorHandler(app: FastifyInstance) {
       });
     }
 
+    if (error.statusCode === 429) {
+      return sendFail(
+        reply,
+        requestId,
+        429,
+        'RATE_LIMIT_EXCEEDED',
+        error.message || 'Demasiadas peticiones. Intenta de nuevo más tarde.',
+      );
+    }
+
+    if (
+      error.statusCode === 401 &&
+      typeof error.code === 'string' &&
+      error.code.startsWith('FST_JWT')
+    ) {
+      return sendFail(
+        reply,
+        requestId,
+        401,
+        'UNAUTHORIZED',
+        'Token inválido o expirado.',
+      );
+    }
+
     const statusCode =
       typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 600
         ? error.statusCode

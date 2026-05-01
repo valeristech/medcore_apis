@@ -1,11 +1,12 @@
 import Fastify from 'fastify';
 import fastifyJwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
 import type { AppEnv } from './core/env.js';
 import { registerAuditAccess } from './core/plugins/auditAccess.js';
 import { registerErrorHandler } from './core/plugins/errorHandler.js';
 import { registerOpenApi, registerScalarDocs } from './core/plugins/openapi.js';
 import { registerRequestContext } from './core/plugins/requestContext.js';
-import { authRoutes } from './modules/auth/auth.routes.js';
+import { authRoutesPlugin } from './modules/auth/auth.routes.js';
 import { healthRouteSchema } from './modules/health/health.schemas.js';
 
 export const buildApp = async (env: AppEnv) => {
@@ -31,8 +32,17 @@ export const buildApp = async (env: AppEnv) => {
   await registerAuditAccess(app);
   await registerErrorHandler(app);
 
+  await app.register(rateLimit, {
+    global: true,
+    max: 300,
+    timeWindow: '1 minute',
+  });
+
   await app.register(fastifyJwt, {
     secret: env.JWT_SECRET,
+    sign: {
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+    },
   });
 
   app.get(
@@ -51,7 +61,7 @@ export const buildApp = async (env: AppEnv) => {
     },
   );
 
-  await app.register(authRoutes, { prefix: '/api/auth' });
+  await app.register(authRoutesPlugin, { prefix: '/api/auth', appEnv: env });
 
   await registerScalarDocs(app);
 

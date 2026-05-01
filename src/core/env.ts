@@ -5,6 +5,10 @@ export type AppEnv = Readonly<{
   PORT: number;
   JWT_SECRET: string;
   DATABASE_URL: string | undefined;
+  /** Duración del access JWT (jsonwebtoken, p. ej. `15m`, `1h`). */
+  JWT_ACCESS_EXPIRES_IN: string;
+  /** Días de validez del refresh token opaco. */
+  JWT_REFRESH_DAYS: number;
 }>;
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -22,6 +26,17 @@ function parseNodeEnv(raw: string | undefined): NodeEnv {
   throw new Error(
     `NODE_ENV inválido: "${raw}". Valores permitidos: development, production, test.`,
   );
+}
+
+function parseJwtRefreshDays(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === '') return 7;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 365) {
+    throw new Error(
+      `JWT_REFRESH_DAYS inválido: "${raw}". Debe ser un entero entre 1 y 365.`,
+    );
+  }
+  return n;
 }
 
 /**
@@ -50,10 +65,16 @@ export function loadEnv(): AppEnv {
   const JWT_SECRET =
     jwtRaw.length > 0 ? jwtRaw : 'dev-secret-change-me-not-for-production';
 
+  const JWT_ACCESS_EXPIRES_IN =
+    process.env.JWT_ACCESS_EXPIRES_IN?.trim() || '15m';
+  const JWT_REFRESH_DAYS = parseJwtRefreshDays(process.env.JWT_REFRESH_DAYS);
+
   return Object.freeze({
     NODE_ENV,
     PORT,
     JWT_SECRET,
     DATABASE_URL,
+    JWT_ACCESS_EXPIRES_IN,
+    JWT_REFRESH_DAYS,
   });
 }

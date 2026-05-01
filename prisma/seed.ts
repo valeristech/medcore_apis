@@ -12,7 +12,7 @@ const SEED = {
   rol: {
     nombre: 'Administrador',
     descripcion: 'Rol sembrado para desarrollo / pruebas de auth',
-    permisos: { auth: ['login'], demo: true },
+    permisos: { auth: ['login', 'refresh', 'logout', 'me'], demo: true },
   },
   usuario: {
     email: 'admin@medicore.demo',
@@ -50,6 +50,14 @@ async function main() {
       data: {
         organizacion_id: org.id,
         nombre: SEED.rol.nombre,
+        descripcion: SEED.rol.descripcion,
+        permisos: SEED.rol.permisos,
+      },
+    });
+  } else {
+    await prisma.rol.update({
+      where: { id: rol.id },
+      data: {
         descripcion: SEED.rol.descripcion,
         permisos: SEED.rol.permisos,
       },

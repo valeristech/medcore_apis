@@ -13,7 +13,11 @@ export async function registerOpenApi(app: FastifyInstance) {
       },
       tags: [
         { name: 'Sistema', description: 'Salud del servicio' },
-        { name: 'Autenticación', description: 'Login y JWT' },
+        {
+          name: 'Autenticación',
+          description:
+            'Login, refresh, logout y JWT. El access token incluye permisos del rol para RBAC.',
+        },
       ],
       components: {
         securitySchemes: {
@@ -22,7 +26,7 @@ export async function registerOpenApi(app: FastifyInstance) {
             scheme: 'bearer',
             bearerFormat: 'JWT',
             description:
-              'Token JWT devuelto por POST /api/auth/login. Enviar en Authorization: Bearer.',
+              'Access JWT (POST /api/auth/login o /api/auth/refresh). Cabecera: Authorization: Bearer <token>.',
           },
         },
       },
