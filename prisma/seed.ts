@@ -17,6 +17,7 @@ const SEED = {
       core: ['organizaciones'],
       sedes: ['*'],
       consultorios: ['*'],
+      roles: ['*'],
     },
   },
   usuario: {

@@ -30,6 +30,10 @@ export async function registerOpenApi(app: FastifyInstance) {
           name: 'Core / Consultorios',
           description: 'Gestión de consultorios por sede.',
         },
+        {
+          name: 'Core / Roles y Permisos',
+          description: 'CRUD de roles, validación de permisos JSON y plantillas clínicas.',
+        },
       ],
       components: {
         securitySchemes: {
