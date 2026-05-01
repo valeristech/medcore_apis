@@ -8,6 +8,7 @@ import { registerOpenApi, registerScalarDocs } from './core/plugins/openapi.js';
 import { registerRequestContext } from './core/plugins/requestContext.js';
 import { auditLogRoutes } from './modules/audit-log/audit-log.routes.js';
 import { authRoutesPlugin } from './modules/auth/auth.routes.js';
+import { disponibilidadRoutes } from './modules/disponibilidad/disponibilidad.routes.js';
 import { healthRouteSchema } from './modules/health/health.schemas.js';
 import { organizacionRoutes } from './modules/organizaciones/organizacion.routes.js';
 import { roleRoutes } from './modules/roles/role.routes.js';
@@ -72,6 +73,7 @@ export const buildApp = async (env: AppEnv) => {
   await app.register(sedeRoutes, { prefix: '/api' });
   await app.register(userRoutes, { prefix: '/api' });
   await app.register(auditLogRoutes, { prefix: '/api' });
+  await app.register(disponibilidadRoutes, { prefix: '/api/disponibilidad' });
 
   await registerScalarDocs(app);
 

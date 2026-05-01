@@ -1,6 +1,135 @@
 import './load-env.js';
+import type { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import prisma from '../src/config/prisma.js';
+
+/**
+ * Opcional en `.env` (UUIDs reales de tu BD) para sembrar `regla_disponibilidad` demo:
+ *   SEED_CONSULTORIO_ID=<uuid consultorio>
+ *   SEED_MEDICO_USUARIO_ID=<uuid usuario médico>
+ * Si alguna falta, se omite ese bloque sin error.
+ */
+const SEED_CONSULTORIO_ID = process.env.SEED_CONSULTORIO_ID?.trim() ?? '';
+const SEED_MEDICO_USUARIO_ID = process.env.SEED_MEDICO_USUARIO_ID?.trim() ?? '';
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(v: string): boolean {
+  return UUID_RE.test(v);
+}
+
+/** IDs fijos para upsert idempotente de reglas demo (no confunden con datos reales). */
+const REGLA_DEMO_IDS = {
+  semanaManana: '22222222-2222-4222-8222-222222222201',
+  semanaTarde: '22222222-2222-4222-8222-222222222202',
+} as const;
+
+function franjasSemanaLaboral(
+  horaInicio: string,
+  horaFin: string,
+): Prisma.InputJsonValue {
+  const dias = [1, 2, 3, 4, 5] as const;
+  return dias.map((dia_semana) => ({
+    dia_semana,
+    hora_inicio: horaInicio,
+    hora_fin: horaFin,
+  }));
+}
+
+async function seedReglasDisponibilidadDemo(consultorioId: string, medicoUsuarioId: string) {
+  if (!isUuid(consultorioId) || !isUuid(medicoUsuarioId)) {
+    console.warn(
+      'Seed disponibilidad: SEED_CONSULTORIO_ID o SEED_MEDICO_USUARIO_ID no son UUID válidos; se omite.',
+    );
+    return;
+  }
+
+  const consultorio = await prisma.consultorio.findFirst({
+    where: { id: consultorioId, deleted: false },
+    include: { sede: { select: { organizacion_id: true, deleted: true } } },
+  });
+  if (!consultorio || consultorio.sede.deleted === true) {
+    console.warn(`Seed disponibilidad: consultorio ${consultorioId} no encontrado o sede inactiva.`);
+    return;
+  }
+
+  const medico = await prisma.usuario.findFirst({
+    where: { id: medicoUsuarioId, deleted: false },
+    select: { id: true, organizacion_id: true },
+  });
+  if (!medico) {
+    console.warn(`Seed disponibilidad: usuario médico ${medicoUsuarioId} no encontrado.`);
+    return;
+  }
+
+  if (medico.organizacion_id !== consultorio.sede.organizacion_id) {
+    console.warn(
+      'Seed disponibilidad: el médico y el consultorio no pertenecen a la misma organización; se omite.',
+    );
+    return;
+  }
+
+  const y = new Date().getUTCFullYear();
+  const vigenciaInicio = new Date(`${y}-01-01T12:00:00.000Z`);
+  const vigenciaFin = new Date(`${y + 1}-12-31T12:00:00.000Z`);
+
+  const excepcionesFestivo: Prisma.InputJsonValue = [
+    { fecha: `${y}-12-25`, cerrado: true },
+    { fecha: `${y}-01-01`, cerrado: true },
+  ];
+
+  await prisma.regla_disponibilidad.upsert({
+    where: { id: REGLA_DEMO_IDS.semanaManana },
+    create: {
+      id: REGLA_DEMO_IDS.semanaManana,
+      usuario_id: medicoUsuarioId,
+      consultorio_id: consultorioId,
+      franjas: franjasSemanaLaboral('08:00', '12:30'),
+      excepciones: excepcionesFestivo,
+      vigencia_inicio: vigenciaInicio,
+      vigencia_fin: vigenciaFin,
+    },
+    update: {
+      usuario_id: medicoUsuarioId,
+      consultorio_id: consultorioId,
+      franjas: franjasSemanaLaboral('08:00', '12:30'),
+      excepciones: excepcionesFestivo,
+      vigencia_inicio: vigenciaInicio,
+      vigencia_fin: vigenciaFin,
+      deleted: false,
+      deleted_at: null,
+    },
+  });
+
+  await prisma.regla_disponibilidad.upsert({
+    where: { id: REGLA_DEMO_IDS.semanaTarde },
+    create: {
+      id: REGLA_DEMO_IDS.semanaTarde,
+      usuario_id: medicoUsuarioId,
+      consultorio_id: consultorioId,
+      franjas: franjasSemanaLaboral('14:00', '18:00'),
+      excepciones: [],
+      vigencia_inicio: vigenciaInicio,
+      vigencia_fin: vigenciaFin,
+    },
+    update: {
+      usuario_id: medicoUsuarioId,
+      consultorio_id: consultorioId,
+      franjas: franjasSemanaLaboral('14:00', '18:00'),
+      excepciones: [],
+      vigencia_inicio: vigenciaInicio,
+      vigencia_fin: vigenciaFin,
+      deleted: false,
+      deleted_at: null,
+    },
+  });
+
+  console.log('Seed disponibilidad OK (2 reglas estándar)');
+  console.log(`  consultorio_id: ${consultorioId}`);
+  console.log(`  medico usuario_id: ${medicoUsuarioId}`);
+  console.log(`  reglas: ${REGLA_DEMO_IDS.semanaManana}, ${REGLA_DEMO_IDS.semanaTarde}`);
+}
 
 /** Datos demo para probar POST /api/auth/login (ajusta si ya existen en tu BD). */
 const SEED = {
@@ -20,6 +149,7 @@ const SEED = {
       consultorios: ['*'],
       roles: ['*'],
       auditoria: ['*'],
+      agenda: ['*'],
     },
   },
   usuario: {
@@ -100,6 +230,14 @@ async function main() {
   console.log(`  Rol: ${SEED.rol.nombre}`);
   console.log(`  Usuario: ${SEED.usuario.email}`);
   console.log(`  Contraseña: ${SEED.usuario.passwordPlain}`);
+
+  if (SEED_CONSULTORIO_ID && SEED_MEDICO_USUARIO_ID) {
+    await seedReglasDisponibilidadDemo(SEED_CONSULTORIO_ID, SEED_MEDICO_USUARIO_ID);
+  } else {
+    console.log(
+      'Seed disponibilidad: omitido (define SEED_CONSULTORIO_ID y SEED_MEDICO_USUARIO_ID en .env para sembrar reglas).',
+    );
+  }
 }
 
 main()

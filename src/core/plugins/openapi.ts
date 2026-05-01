@@ -42,6 +42,11 @@ export async function registerOpenApi(app: FastifyInstance) {
           name: 'Core / Auditoría',
           description: 'Consulta de eventos de audit_log por tenant.',
         },
+        {
+          name: 'Agenda / Disponibilidad',
+          description:
+            'Reglas de disponibilidad por médico y consultorio (`regla_disponibilidad`): franjas recurrentes, excepciones y vigencias.',
+        },
       ],
       components: {
         securitySchemes: {
