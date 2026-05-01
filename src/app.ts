@@ -8,6 +8,7 @@ import { registerOpenApi, registerScalarDocs } from './core/plugins/openapi.js';
 import { registerRequestContext } from './core/plugins/requestContext.js';
 import { authRoutesPlugin } from './modules/auth/auth.routes.js';
 import { healthRouteSchema } from './modules/health/health.schemas.js';
+import { organizacionRoutes } from './modules/organizaciones/organizacion.routes.js';
 
 export const buildApp = async (env: AppEnv) => {
   const logger =
@@ -62,6 +63,7 @@ export const buildApp = async (env: AppEnv) => {
   );
 
   await app.register(authRoutesPlugin, { prefix: '/api/auth', appEnv: env });
+  await app.register(organizacionRoutes, { prefix: '/api/organizaciones' });
 
   await registerScalarDocs(app);
 

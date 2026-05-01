@@ -12,7 +12,11 @@ const SEED = {
   rol: {
     nombre: 'Administrador',
     descripcion: 'Rol sembrado para desarrollo / pruebas de auth',
-    permisos: { auth: ['login', 'refresh', 'logout', 'me'], demo: true },
+    permisos: {
+      auth: ['login', 'refresh', 'logout', 'me'],
+      core: ['organizaciones'],
+      demo: true,
+    },
   },
   usuario: {
     email: 'admin@medicore.demo',
