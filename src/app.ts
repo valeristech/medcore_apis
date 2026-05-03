@@ -10,6 +10,7 @@ import { auditLogRoutes } from './modules/audit-log/audit-log.routes.js';
 import { authRoutesPlugin } from './modules/auth/auth.routes.js';
 import { disponibilidadRoutes } from './modules/disponibilidad/disponibilidad.routes.js';
 import { healthRouteSchema } from './modules/health/health.schemas.js';
+import { pacienteRoutes } from './modules/pacientes/paciente.routes.js';
 import { organizacionRoutes } from './modules/organizaciones/organizacion.routes.js';
 import { roleRoutes } from './modules/roles/role.routes.js';
 import { sedeRoutes } from './modules/sedes/sede.routes.js';
@@ -74,6 +75,7 @@ export const buildApp = async (env: AppEnv) => {
   await app.register(userRoutes, { prefix: '/api' });
   await app.register(auditLogRoutes, { prefix: '/api' });
   await app.register(disponibilidadRoutes, { prefix: '/api/disponibilidad' });
+  await app.register(pacienteRoutes, { prefix: '/api' });
 
   await registerScalarDocs(app);
 
