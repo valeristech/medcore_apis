@@ -2,18 +2,13 @@ import bcrypt from 'bcryptjs';
 import type { Prisma } from '@prisma/client';
 import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
+import { cleanStr as cleanString } from '../../core/utils/strings.js';
 import type {
   CreateUsuarioInput,
   SearchUsuariosQuery,
   UpdateUsuarioInput,
   UsuarioSedeInput,
 } from './user.schemas.js';
-
-function cleanString(v: unknown): string | undefined {
-  if (typeof v !== 'string') return undefined;
-  const t = v.trim();
-  return t.length > 0 ? t : undefined;
-}
 
 function dedupeUsuarioSedes(values: UsuarioSedeInput[] | undefined): UsuarioSedeInput[] {
   if (!values || values.length === 0) return [];
