@@ -2,6 +2,10 @@ import './load-env.js';
 import type { Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import prisma from '../src/config/prisma.js';
+import {
+  GUATEMALA_DEPARTAMENTOS,
+  GUATEMALA_MUNICIPIOS,
+} from './guatemala-ine.seed-data.js';
 
 /**
  * Opcional en `.env` (UUIDs reales de tu BD) para sembrar `regla_disponibilidad` demo:
@@ -131,6 +135,81 @@ async function seedReglasDisponibilidadDemo(consultorioId: string, medicoUsuario
   console.log(`  reglas: ${REGLA_DEMO_IDS.semanaManana}, ${REGLA_DEMO_IDS.semanaTarde}`);
 }
 
+/**
+ * INE Guatemala (22 departamentos, 340 municipios) para la organización demo.
+ * Idempotente: actualiza nombres y reactiva filas si ya existían.
+ */
+async function seedCatalogoGeoGuatemala(organizacionId: string) {
+  const deptByCodigo = new Map<string, string>();
+
+  for (const d of GUATEMALA_DEPARTAMENTOS) {
+    const row = await prisma.departamento.upsert({
+      where: {
+        organizacion_id_codigo: {
+          organizacion_id: organizacionId,
+          codigo:          d.codigo,
+        },
+      },
+      create: {
+        organizacion_id: organizacionId,
+        codigo:          d.codigo,
+        nombre:          d.nombre,
+        activo:          true,
+        deleted:         false,
+      },
+      update: {
+        nombre:      d.nombre,
+        activo:      true,
+        deleted:     false,
+        deleted_at:  null,
+        updated_at:  new Date(),
+      },
+    });
+    deptByCodigo.set(d.codigo, row.id);
+  }
+
+  const chunkSize = 40;
+  for (let i = 0; i < GUATEMALA_MUNICIPIOS.length; i += chunkSize) {
+    const chunk = GUATEMALA_MUNICIPIOS.slice(i, i + chunkSize);
+    await Promise.all(
+      chunk.map(async (m) => {
+        const departamento_id = deptByCodigo.get(m.deptoCodigo);
+        if (!departamento_id) {
+          throw new Error(`Departamento código ${m.deptoCodigo} no resuelto para municipio ${m.codigo}`);
+        }
+        await prisma.municipio.upsert({
+          where: {
+            departamento_id_codigo: {
+              departamento_id,
+              codigo: m.codigo,
+            },
+          },
+          create: {
+            organizacion_id: organizacionId,
+            departamento_id,
+            codigo:          m.codigo,
+            nombre:          m.nombre,
+            activo:          true,
+            deleted:         false,
+          },
+          update: {
+            nombre:          m.nombre,
+            activo:          true,
+            deleted:         false,
+            deleted_at:      null,
+            organizacion_id: organizacionId,
+            updated_at:      new Date(),
+          },
+        });
+      }),
+    );
+  }
+
+  console.log(
+    `Seed catálogo geo Guatemala OK — ${GUATEMALA_DEPARTAMENTOS.length} departamentos, ${GUATEMALA_MUNICIPIOS.length} municipios (organización ${organizacionId}).`,
+  );
+}
+
 /** Datos demo para probar POST /api/auth/login (ajusta si ya existen en tu BD). */
 const SEED = {
   organizacion: {
@@ -150,6 +229,8 @@ const SEED = {
       roles: ['*'],
       auditoria: ['*'],
       agenda: ['*'],
+      pacientes: ['*'],
+      catalogos_geo: ['*'],
     },
   },
   usuario: {
@@ -230,6 +311,8 @@ async function main() {
   console.log(`  Rol: ${SEED.rol.nombre}`);
   console.log(`  Usuario: ${SEED.usuario.email}`);
   console.log(`  Contraseña: ${SEED.usuario.passwordPlain}`);
+
+  await seedCatalogoGeoGuatemala(org.id);
 
   if (SEED_CONSULTORIO_ID && SEED_MEDICO_USUARIO_ID) {
     await seedReglasDisponibilidadDemo(SEED_CONSULTORIO_ID, SEED_MEDICO_USUARIO_ID);

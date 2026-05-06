@@ -12,6 +12,57 @@ import type {
   UpdateSeguroInput,
 } from './paciente.schemas.js';
 
+const UBICACION_INCLUDE = {
+  municipio: {
+    include: {
+      departamento: {
+        select: {
+          id: true,
+          codigo: true,
+          nombre: true,
+          activo: true,
+          deleted: true,
+        },
+      },
+    },
+  },
+} as const;
+
+type PacienteUbicacionPayload = Prisma.pacienteGetPayload<{ include: typeof UBICACION_INCLUDE }>;
+
+function buildUbicacion(m: PacienteUbicacionPayload['municipio']) {
+  if (
+    !m ||
+    m.deleted ||
+    m.activo === false ||
+    !m.departamento ||
+    m.departamento.deleted ||
+    m.departamento.activo === false
+  ) {
+    return null;
+  }
+  return {
+    municipio: { id: m.id, codigo: m.codigo, nombre: m.nombre },
+    departamento: {
+      id: m.departamento.id,
+      codigo: m.departamento.codigo,
+      nombre: m.departamento.nombre,
+    },
+  };
+}
+
+function datesPaciente<T extends Record<string, unknown>>(row: T): T {
+  const out = { ...row } as T & Record<string, unknown>;
+  const o = out as Record<string, unknown>;
+  const fn = o.fecha_nacimiento;
+  if (fn instanceof Date) o.fecha_nacimiento = fn.toISOString().slice(0, 10);
+  const ca = o.created_at;
+  if (ca instanceof Date) o.created_at = ca.toISOString();
+  const ua = o.updated_at;
+  if (ua instanceof Date) o.updated_at = ua.toISOString();
+  return out as T;
+}
+
 /**
  * Genera el siguiente número de expediente → EXP-2026-0001.
  */
@@ -25,10 +76,34 @@ async function generateNumeroExpediente(tenantOrgId: string): Promise<string> {
 }
 
 export class PacienteService {
+  private async assertMunicipioEnTenant(
+    municipioId: string,
+    tenantOrgId: string,
+  ): Promise<string> {
+    const m = await prisma.municipio.findFirst({
+      where: {
+        id: municipioId.trim(),
+        organizacion_id: tenantOrgId,
+        deleted: false,
+        activo: true,
+      },
+      include: {
+        departamento: { select: { id: true, deleted: true, activo: true } },
+      },
+    });
+    if (!m) {
+      throw new HttpError(400, 'MUNICIPIO_INVALIDO', 'Municipio no válido para la organización.');
+    }
+    if (!m.departamento || m.departamento.deleted || m.departamento.activo === false) {
+      throw new HttpError(400, 'MUNICIPIO_INVALIDO', 'El departamento del municipio no está disponible.');
+    }
+    return m.id;
+  }
+
   private async getPacienteTenantOr404(pacienteId: string, tenantOrgId: string) {
     const rel = await prisma.paciente_organizacion.findFirst({
       where: { paciente_id: pacienteId, organizacion_id: tenantOrgId },
-      include: { paciente: true },
+      include: { paciente: { include: UBICACION_INCLUDE } },
     });
     if (!rel || !rel.paciente || rel.paciente.deleted) {
       throw new HttpError(404, 'NOT_FOUND', 'Paciente no encontrado.');
@@ -63,6 +138,11 @@ export class PacienteService {
     const dpi = cleanStr(input.dpi);
     if (dpi) await this.assertDpiUnicoEnTenant(dpi, tenantOrgId);
 
+    const municipioId =
+      input.municipio_id !== undefined && input.municipio_id !== null && String(input.municipio_id).trim() !== ''
+        ? await this.assertMunicipioEnTenant(String(input.municipio_id), tenantOrgId)
+        : null;
+
     const numeroExpediente = await generateNumeroExpediente(tenantOrgId);
 
     const paciente = await prisma.$transaction(async (tx) => {
@@ -78,8 +158,7 @@ export class PacienteService {
           telefono_secundario:          cleanStr(input.telefono_secundario) ?? null,
           email:         cleanStr(input.email)?.toLowerCase() ?? null,
           direccion:     cleanStr(input.direccion) ?? null,
-          municipio:     cleanStr(input.municipio) ?? null,
-          departamento:  cleanStr(input.departamento) ?? null,
+          municipio_id:  municipioId,
           contacto_emergencia_nombre:   cleanStr(input.contacto_emergencia_nombre) ?? null,
           contacto_emergencia_telefono: cleanStr(input.contacto_emergencia_telefono) ?? null,
           contacto_emergencia_relacion: cleanStr(input.contacto_emergencia_relacion) ?? null,
@@ -138,6 +217,7 @@ export class PacienteService {
       prisma.paciente.findMany({
         where,
         include: {
+          municipio: UBICACION_INCLUDE.municipio,
           paciente_organizacion: {
             where: { organizacion_id: tenantOrgId },
             select: { numero_expediente: true, fecha_registro: true, activo: true },
@@ -154,11 +234,15 @@ export class PacienteService {
     ]);
 
     return {
-      items: items.map((p) => ({
-        ...p,
-        expediente: p.paciente_organizacion[0] ?? null,
-        paciente_organizacion: undefined,
-      })),
+      items: items.map((p) => {
+        const { paciente_organizacion, alergia, municipio, ...rest } = p;
+        return {
+          ...datesPaciente(rest),
+          ubicacion: buildUbicacion(municipio),
+          alergia,
+          expediente: paciente_organizacion[0] ?? null,
+        };
+      }),
       pagination: {
         page,
         pageSize,
@@ -172,8 +256,10 @@ export class PacienteService {
 
   async getById(pacienteId: string, tenantOrgId: string) {
     const { paciente, rel } = await this.getPacienteTenantOr404(pacienteId, tenantOrgId);
+    const { municipio, ...rest } = paciente;
     return {
-      ...paciente,
+      ...datesPaciente(rest),
+      ubicacion: buildUbicacion(municipio),
       expediente: {
         numero_expediente: rel.numero_expediente,
         fecha_registro:    rel.fecha_registro,
@@ -204,8 +290,13 @@ export class PacienteService {
     }
     if (input.email        !== undefined) data.email        = cleanStr(input.email)?.toLowerCase() ?? null;
     if (input.direccion    !== undefined) data.direccion    = cleanStr(input.direccion) ?? null;
-    if (input.municipio    !== undefined) data.municipio    = cleanStr(input.municipio) ?? null;
-    if (input.departamento !== undefined) data.departamento = cleanStr(input.departamento) ?? null;
+    if (input.municipio_id !== undefined) {
+      if (input.municipio_id === null || String(input.municipio_id).trim() === '') {
+        data.municipio_id = null;
+      } else {
+        data.municipio_id = await this.assertMunicipioEnTenant(String(input.municipio_id), tenantOrgId);
+      }
+    }
     if (input.contacto_emergencia_nombre   !== undefined) {
       data.contacto_emergencia_nombre = cleanStr(input.contacto_emergencia_nombre) ?? null;
     }
@@ -264,8 +355,10 @@ export class PacienteService {
       }),
     ]);
 
+    const { municipio, ...rest } = paciente;
     return {
-      ...paciente,
+      ...datesPaciente(rest),
+      ubicacion: buildUbicacion(municipio),
       expediente: {
         numero_expediente: rel.numero_expediente,
         fecha_registro:    rel.fecha_registro,
