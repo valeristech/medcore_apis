@@ -42,6 +42,17 @@ export type SearchPacientesQuery = {
   sortOrder?: 'asc' | 'desc';
 };
 
+export const PACIENTE_SORT_BY_VALUES = [
+  'created_at',
+  'updated_at',
+  'nombre',
+  'apellido',
+  'dpi',
+  'nit',
+] as const;
+
+export type PacienteSortBy = (typeof PACIENTE_SORT_BY_VALUES)[number];
+
 export type CreateAlergiaInput = {
   sustancia: string;
   tipo_reaccion?: string;
@@ -210,7 +221,7 @@ export const buscarPacientesSchema = {
         q:         { type: 'string', description: 'Búsqueda por nombre, apellido, DPI, NIT o teléfono' },
         page:      { type: 'integer', minimum: 1, default: 1 },
         pageSize:  { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-        sortBy:    { type: 'string', default: 'created_at' },
+        sortBy:    { type: 'string', enum: PACIENTE_SORT_BY_VALUES, default: 'created_at' },
         sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
       },
     },

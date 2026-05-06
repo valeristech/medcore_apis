@@ -11,6 +11,7 @@ import type {
   UpdatePacienteInput,
   UpdateSeguroInput,
 } from './paciente.schemas.js';
+import { PACIENTE_SORT_BY_VALUES, type PacienteSortBy } from './paciente.schemas.js';
 
 const UBICACION_INCLUDE = {
   municipio: {
@@ -187,7 +188,10 @@ export class PacienteService {
   async search(tenantOrgId: string, query: SearchPacientesQuery) {
     const page     = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
-    const sortBy   = query.sortBy ?? 'created_at';
+    const rawSortBy = (query.sortBy ?? 'created_at') as string;
+    const sortBy: PacienteSortBy = (PACIENTE_SORT_BY_VALUES as readonly string[]).includes(rawSortBy)
+      ? (rawSortBy as PacienteSortBy)
+      : 'created_at';
     const sortOrder = query.sortOrder ?? 'desc';
     const q = query.q?.trim();
 
