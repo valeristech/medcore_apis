@@ -1,14 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
+import { cleanStr as cleanString } from '../../core/utils/strings.js';
 import type { CreateRoleInput, SearchRolesQuery, UpdateRoleInput } from './role.schemas.js';
 import { getRoleTemplateOrNull, ROLE_TEMPLATES } from './role.templates.js';
-
-function cleanString(v: unknown): string | undefined {
-  if (typeof v !== 'string') return undefined;
-  const t = v.trim();
-  return t.length > 0 ? t : undefined;
-}
 
 function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((item) => typeof item === 'string' && item.trim().length > 0);

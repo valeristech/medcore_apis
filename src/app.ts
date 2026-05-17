@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import fastifyCors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import type { AppEnv } from './core/env.js';
@@ -9,7 +10,9 @@ import { registerRequestContext } from './core/plugins/requestContext.js';
 import { auditLogRoutes } from './modules/audit-log/audit-log.routes.js';
 import { authRoutesPlugin } from './modules/auth/auth.routes.js';
 import { disponibilidadRoutes } from './modules/disponibilidad/disponibilidad.routes.js';
+import { geoCatalogRoutes } from './modules/geo-catalog/geo-catalog.routes.js';
 import { healthRouteSchema } from './modules/health/health.schemas.js';
+import { pacienteRoutes } from './modules/pacientes/paciente.routes.js';
 import { organizacionRoutes } from './modules/organizaciones/organizacion.routes.js';
 import { roleRoutes } from './modules/roles/role.routes.js';
 import { sedeRoutes } from './modules/sedes/sede.routes.js';
@@ -31,6 +34,13 @@ export const buildApp = async (env: AppEnv) => {
         };
 
   const app = Fastify({ logger });
+
+  await app.register(fastifyCors, {
+    origin: true, // permite cualquier origen (en producción puedes poner tu dominio)
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  });
 
   await registerOpenApi(app);
 
@@ -74,6 +84,8 @@ export const buildApp = async (env: AppEnv) => {
   await app.register(userRoutes, { prefix: '/api' });
   await app.register(auditLogRoutes, { prefix: '/api' });
   await app.register(disponibilidadRoutes, { prefix: '/api/disponibilidad' });
+  await app.register(geoCatalogRoutes, { prefix: '/api' });
+  await app.register(pacienteRoutes, { prefix: '/api' });
 
   await registerScalarDocs(app);
 

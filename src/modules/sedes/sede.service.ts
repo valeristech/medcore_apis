@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
+import { cleanStr as cleanString } from '../../core/utils/strings.js';
 import type {
   CreateConsultorioInput,
   CreateSedeInput,
@@ -9,12 +10,6 @@ import type {
   UpdateConsultorioInput,
   UpdateSedeInput,
 } from './sede.schemas.js';
-
-function cleanString(v: unknown): string | undefined {
-  if (typeof v !== 'string') return undefined;
-  const t = v.trim();
-  return t.length > 0 ? t : undefined;
-}
 
 function sedeCreateData(
   organizacionId: string,

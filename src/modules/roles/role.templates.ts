@@ -18,6 +18,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
       sedes: ['*'],
       consultorios: ['*'],
       roles: ['*'],
+      catalogos_geo: ['*'],
     },
   },
   medico: {
@@ -30,6 +31,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
       hce: ['leer', 'crear', 'editar'],
       seguimiento: ['leer', 'crear', 'editar'],
       telemedicina: ['leer', 'crear'],
+      catalogos_geo: ['leer'],
     },
   },
   secretaria: {
@@ -42,6 +44,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
       agenda: ['leer', 'crear', 'editar', 'cancelar'],
       facturacion: ['leer', 'crear'],
       seguimiento: ['leer', 'editar'],
+      catalogos_geo: ['leer'],
     },
   },
   enfermeria: {
@@ -54,6 +57,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
       hce: ['leer', 'editar'],
       seguimiento: ['leer', 'editar'],
       inventario: ['leer'],
+      catalogos_geo: ['leer'],
     },
   },
 };
