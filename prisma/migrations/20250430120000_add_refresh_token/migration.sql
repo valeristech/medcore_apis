@@ -1,6 +1,6 @@
 -- Tabla para refresh tokens opacos (Sprint 2).
 CREATE TABLE IF NOT EXISTS refresh_token (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id UUID NOT NULL,
     token_hash VARCHAR(64) NOT NULL,
     expires_at TIMESTAMP(6) NOT NULL,

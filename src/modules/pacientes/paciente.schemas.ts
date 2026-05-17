@@ -23,8 +23,8 @@ export type CreatePacienteInput = {
   telefono_secundario?: string;
   email?: string;
   direccion?: string;
-  municipio?: string;
-  departamento?: string;
+  /** UUID de fila en catálogo `municipio` del mismo tenant. */
+  municipio_id?: string | null;
   contacto_emergencia_nombre?: string;
   contacto_emergencia_telefono?: string;
   contacto_emergencia_relacion?: string;
@@ -41,6 +41,17 @@ export type SearchPacientesQuery = {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 };
+
+export const PACIENTE_SORT_BY_VALUES = [
+  'created_at',
+  'updated_at',
+  'nombre',
+  'apellido',
+  'dpi',
+  'nit',
+] as const;
+
+export type PacienteSortBy = (typeof PACIENTE_SORT_BY_VALUES)[number];
 
 export type CreateAlergiaInput = {
   sustancia: string;
@@ -78,8 +89,7 @@ const pacienteBaseProperties = {
   telefono_secundario:           { type: 'string', maxLength: 30 },
   email:         { type: 'string', format: 'email', maxLength: 200 },
   direccion:     { type: 'string' },
-  municipio:     { type: 'string', maxLength: 100 },
-  departamento:  { type: 'string', maxLength: 100 },
+  municipio_id:  { type: 'string', format: 'uuid', description: 'Catálogo municipio (tenant).' },
   contacto_emergencia_nombre:   { type: 'string', maxLength: 150 },
   contacto_emergencia_telefono: { type: 'string', maxLength: 30 },
   contacto_emergencia_relacion: { type: 'string', maxLength: 50 },
@@ -100,8 +110,30 @@ const pacienteResponseProperties = {
   telefono_secundario:          { type: 'string', nullable: true },
   email:         { type: 'string', nullable: true },
   direccion:     { type: 'string', nullable: true },
-  municipio:     { type: 'string', nullable: true },
-  departamento:  { type: 'string', nullable: true },
+  municipio_id:  { type: 'string', format: 'uuid', nullable: true },
+  ubicacion: {
+    type: 'object',
+    nullable: true,
+    description: 'Resumen desde catálogos municipio + departamento.',
+    properties: {
+      municipio: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          codigo: { type: 'string' },
+          nombre: { type: 'string' },
+        },
+      },
+      departamento: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          codigo: { type: 'string' },
+          nombre: { type: 'string' },
+        },
+      },
+    },
+  },
   contacto_emergencia_nombre:   { type: 'string', nullable: true },
   contacto_emergencia_telefono: { type: 'string', nullable: true },
   contacto_emergencia_relacion: { type: 'string', nullable: true },
@@ -189,7 +221,7 @@ export const buscarPacientesSchema = {
         q:         { type: 'string', description: 'Búsqueda por nombre, apellido, DPI, NIT o teléfono' },
         page:      { type: 'integer', minimum: 1, default: 1 },
         pageSize:  { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-        sortBy:    { type: 'string', default: 'created_at' },
+        sortBy:    { type: 'string', enum: PACIENTE_SORT_BY_VALUES, default: 'created_at' },
         sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
       },
     },

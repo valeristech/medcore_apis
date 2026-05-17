@@ -31,6 +31,11 @@ export async function registerOpenApi(app: FastifyInstance) {
           description: 'Gestión de consultorios por sede.',
         },
         {
+          name: 'Core / Catálogo geográfico',
+          description:
+            'Departamentos y municipios por organización (tenant), para dirección de pacientes y formularios.',
+        },
+        {
           name: 'Core / Roles y Permisos',
           description: 'CRUD de roles, validación de permisos JSON y plantillas clínicas.',
         },
@@ -46,6 +51,11 @@ export async function registerOpenApi(app: FastifyInstance) {
           name: 'Agenda / Disponibilidad',
           description:
             'Reglas de disponibilidad (`regla_disponibilidad`) y calendario con zona IANA (default Guatemala vía `organizacion.zona_horaria` o `America/Guatemala`): reglas + citas, ventanas y huecos por slot.',
+        },
+        {
+          name: 'Pacientes',
+          description:
+            'Alta y mantenimiento de pacientes por tenant (`paciente` + `paciente_organizacion`), búsqueda, perfil, alergias y seguros.',
         },
       ],
       components: {
