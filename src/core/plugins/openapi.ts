@@ -73,6 +73,16 @@ export async function registerOpenApi(app: FastifyInstance, env: AppEnv) {
             'Reglas de disponibilidad (`regla_disponibilidad`) y calendario con zona IANA (default Guatemala vía `organizacion.zona_horaria` o `America/Guatemala`): reglas + citas, ventanas y huecos por slot.',
         },
         {
+          name: 'Agenda / Tipos de cita',
+          description:
+            'Catálogo por organización: nombre, duración, color y flag de telemedicina. Usado al agendar citas y en reportes.',
+        },
+        {
+          name: 'Agenda / Citas',
+          description:
+            'Alta y gestión de citas: validación de tenant (paciente, médico, sede, consultorio, tipo de cita), detección de conflictos de horario y horario dentro de disponibilidad.',
+        },
+        {
           name: 'Pacientes',
           description:
             'Alta y mantenimiento de pacientes por tenant (`paciente` + `paciente_organizacion`), búsqueda, perfil, alergias y seguros.',

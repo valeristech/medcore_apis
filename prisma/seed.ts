@@ -6,6 +6,7 @@ import {
   GUATEMALA_DEPARTAMENTOS,
   GUATEMALA_MUNICIPIOS,
 } from './guatemala-ine.seed-data.js';
+import { TIPOS_CITA_SEED } from './tipo-cita.seed-data.js';
 
 /**
  * Opcional en `.env` (UUIDs reales de tu BD) para sembrar `regla_disponibilidad` demo:
@@ -210,6 +211,39 @@ async function seedCatalogoGeoGuatemala(organizacionId: string) {
   );
 }
 
+/** Tipos de cita estándar para agenda demo (idempotente por UUID fijo). */
+async function seedCatalogoTipoCita(organizacionId: string) {
+  for (const row of TIPOS_CITA_SEED) {
+    await prisma.tipo_cita.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        organizacion_id: organizacionId,
+        nombre: row.nombre,
+        duracion_minutos: row.duracion_minutos,
+        color: row.color,
+        aplica_telemedicina: row.aplica_telemedicina,
+        activo: true,
+        deleted: false,
+      },
+      update: {
+        organizacion_id: organizacionId,
+        nombre: row.nombre,
+        duracion_minutos: row.duracion_minutos,
+        color: row.color,
+        aplica_telemedicina: row.aplica_telemedicina,
+        activo: true,
+        deleted: false,
+        deleted_at: null,
+      },
+    });
+  }
+
+  console.log(
+    `Seed catálogo tipos de cita OK — ${TIPOS_CITA_SEED.length} tipos (organización ${organizacionId}).`,
+  );
+}
+
 /** Datos demo para probar POST /api/auth/login (ajusta si ya existen en tu BD). */
 const SEED = {
   organizacion: {
@@ -313,6 +347,7 @@ async function main() {
   console.log(`  Contraseña: ${SEED.usuario.passwordPlain}`);
 
   await seedCatalogoGeoGuatemala(org.id);
+  await seedCatalogoTipoCita(org.id);
 
   if (SEED_CONSULTORIO_ID && SEED_MEDICO_USUARIO_ID) {
     await seedReglasDisponibilidadDemo(SEED_CONSULTORIO_ID, SEED_MEDICO_USUARIO_ID);

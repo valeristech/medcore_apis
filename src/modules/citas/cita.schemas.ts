@@ -1,0 +1,167 @@
+export type CreateCitaInput = {
+  paciente_id: string;
+  usuario_id: string;
+  consultorio_id: string;
+  sede_id: string;
+  tipo_cita_id: string;
+  /** ISO-8601 (UTC o con offset). Fin se calcula con `tipo_cita.duracion_minutos` salvo `fecha_hora_fin`. */
+  fecha_hora_inicio: string;
+  fecha_hora_fin?: string;
+  notas?: string;
+  origen?: string;
+  /** IANA para validar disponibilidad (default: `organizacion.zona_horaria` o `America/Guatemala`). */
+  timezone?: string;
+};
+
+const envelopeMeta = {
+  type: 'object',
+  required: ['requestId'],
+  properties: { requestId: { type: 'string' } },
+} as const;
+
+const metaProperties = envelopeMeta.properties;
+
+const errorEnvelope = {
+  type: 'object',
+  required: ['success', 'error', 'meta'],
+  properties: {
+    success: { type: 'boolean', enum: [false] },
+    error: {
+      type: 'object',
+      required: ['code', 'message'],
+      properties: { code: { type: 'string' }, message: { type: 'string' }, details: {} },
+    },
+    meta: envelopeMeta,
+  },
+} as const;
+
+const citaShape = {
+  type: 'object',
+  required: [
+    'id',
+    'paciente_id',
+    'usuario_id',
+    'consultorio_id',
+    'sede_id',
+    'tipo_cita_id',
+    'fecha_hora_inicio',
+    'fecha_hora_fin',
+    'estado',
+  ],
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    paciente_id: { type: 'string', format: 'uuid' },
+    usuario_id: { type: 'string', format: 'uuid' },
+    consultorio_id: { type: 'string', format: 'uuid' },
+    sede_id: { type: 'string', format: 'uuid' },
+    tipo_cita_id: { type: 'string', format: 'uuid' },
+    fecha_hora_inicio: { type: 'string', format: 'date-time' },
+    fecha_hora_fin: { type: 'string', format: 'date-time' },
+    estado: { type: 'string' },
+    notas: { type: 'string', nullable: true },
+    origen: { type: 'string', nullable: true },
+    created_at: { type: 'string', nullable: true },
+    paciente: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        nombre: { type: 'string' },
+        apellido: { type: 'string' },
+      },
+    },
+    usuario: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        nombre: { type: 'string' },
+        apellido: { type: 'string' },
+        especialidad: { type: 'string', nullable: true },
+      },
+    },
+    consultorio: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        nombre: { type: 'string' },
+        sede_id: { type: 'string', format: 'uuid' },
+      },
+    },
+    sede: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        nombre: { type: 'string' },
+      },
+    },
+    tipo_cita: {
+      type: 'object',
+      nullable: true,
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        nombre: { type: 'string' },
+        duracion_minutos: { type: 'integer' },
+        color: { type: 'string', nullable: true },
+      },
+    },
+  },
+} as const;
+
+export const crearCitaSchema = {
+  schema: {
+    tags: ['Agenda / Citas'],
+    summary: 'Crear cita (validaciones, conflictos, tipo cita y sede)',
+    description:
+      'Valida tenant (paciente, médico, sede, consultorio, tipo de cita), coherencia sede–consultorio, solapamientos con otras citas activas y que el horario caiga dentro de las reglas de disponibilidad del médico en ese consultorio.',
+    security: [{ bearerAuth: [] }],
+    body: {
+      type: 'object',
+      required: [
+        'paciente_id',
+        'usuario_id',
+        'consultorio_id',
+        'sede_id',
+        'tipo_cita_id',
+        'fecha_hora_inicio',
+      ],
+      additionalProperties: false,
+      properties: {
+        paciente_id: { type: 'string', format: 'uuid' },
+        usuario_id: { type: 'string', format: 'uuid', description: 'Médico / usuario que atiende.' },
+        consultorio_id: { type: 'string', format: 'uuid' },
+        sede_id: { type: 'string', format: 'uuid' },
+        tipo_cita_id: { type: 'string', format: 'uuid' },
+        fecha_hora_inicio: { type: 'string', format: 'date-time' },
+        fecha_hora_fin: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Opcional; si se omite se usa `duracion_minutos` del tipo de cita.',
+        },
+        notas: { type: 'string' },
+        origen: { type: 'string', maxLength: 20, description: 'Default: manual.' },
+        timezone: {
+          type: 'string',
+          description: 'Zona IANA para validar disponibilidad (p. ej. America/Guatemala).',
+        },
+      },
+    },
+    response: {
+      201: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          data: { type: 'object', properties: { cita: citaShape } },
+          meta: { type: 'object', properties: metaProperties },
+        },
+      },
+      400: errorEnvelope,
+      401: errorEnvelope,
+      403: errorEnvelope,
+      404: errorEnvelope,
+      409: errorEnvelope,
+    },
+  },
+} as const;
