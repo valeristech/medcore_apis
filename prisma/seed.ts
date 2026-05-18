@@ -7,6 +7,7 @@ import {
   GUATEMALA_MUNICIPIOS,
 } from './guatemala-ine.seed-data.js';
 import { TIPOS_CITA_SEED } from './tipo-cita.seed-data.js';
+import { PLANTILLAS_RECORDATORIO_SEED } from './plantilla-recordatorio.seed-data.js';
 
 /**
  * Opcional en `.env` (UUIDs reales de tu BD) para sembrar `regla_disponibilidad` demo:
@@ -244,6 +245,38 @@ async function seedCatalogoTipoCita(organizacionId: string) {
   );
 }
 
+async function seedPlantillasRecordatorio(organizacionId: string) {
+  for (const row of PLANTILLAS_RECORDATORIO_SEED) {
+    await prisma.plantilla_recordatorio.upsert({
+      where: { id: row.id },
+      create: {
+        id: row.id,
+        organizacion_id: organizacionId,
+        canal: row.canal,
+        horas_antes: row.horas_antes,
+        asunto: row.asunto,
+        texto: row.texto,
+        activo: true,
+        deleted: false,
+      },
+      update: {
+        organizacion_id: organizacionId,
+        canal: row.canal,
+        horas_antes: row.horas_antes,
+        asunto: row.asunto,
+        texto: row.texto,
+        activo: true,
+        deleted: false,
+        deleted_at: null,
+      },
+    });
+  }
+
+  console.log(
+    `Seed plantillas recordatorio OK — ${PLANTILLAS_RECORDATORIO_SEED.length} plantillas (organización ${organizacionId}).`,
+  );
+}
+
 /** Datos demo para probar POST /api/auth/login (ajusta si ya existen en tu BD). */
 const SEED = {
   organizacion: {
@@ -348,6 +381,7 @@ async function main() {
 
   await seedCatalogoGeoGuatemala(org.id);
   await seedCatalogoTipoCita(org.id);
+  await seedPlantillasRecordatorio(org.id);
 
   if (SEED_CONSULTORIO_ID && SEED_MEDICO_USUARIO_ID) {
     await seedReglasDisponibilidadDemo(SEED_CONSULTORIO_ID, SEED_MEDICO_USUARIO_ID);

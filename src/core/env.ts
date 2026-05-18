@@ -16,6 +16,13 @@ export type AppEnv = Readonly<{
    * Orden: PUBLIC_URL → API_BASE_URL → RENDER_EXTERNAL_URL → http://localhost:PORT
    */
   API_PUBLIC_URL: string;
+  /** Secreto para `POST /api/agenda/recordatorios/ejecutar` (cron externo). */
+  CRON_SECRET: string | undefined;
+  /** Si `true`, ejecuta el job de recordatorios cada hora en el mismo proceso. */
+  RECORDATORIOS_CRON_ENABLED: boolean;
+  /** Webhook opcional para despachar SMS/email/WhatsApp (payload `recordatorio.enviado`). */
+  RECORDATORIOS_WEBHOOK_URL: string | undefined;
+  RECORDATORIOS_WEBHOOK_SECRET: string | undefined;
 }>;
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -98,6 +105,13 @@ export function loadEnv(): AppEnv {
   const CORS_ORIGINS = parseCorsOrigins(process.env.CORS_ORIGINS);
   const API_PUBLIC_URL = resolveApiPublicUrl(PORT);
 
+  const cronSecret = process.env.CRON_SECRET?.trim() || undefined;
+  const recordatoriosWebhookUrl = process.env.RECORDATORIOS_WEBHOOK_URL?.trim() || undefined;
+  const recordatoriosWebhookSecret =
+    process.env.RECORDATORIOS_WEBHOOK_SECRET?.trim() || undefined;
+  const recordatoriosCronEnabled =
+    process.env.RECORDATORIOS_CRON_ENABLED?.trim().toLowerCase() === 'true';
+
   return Object.freeze({
     NODE_ENV,
     PORT,
@@ -107,5 +121,9 @@ export function loadEnv(): AppEnv {
     JWT_REFRESH_DAYS,
     CORS_ORIGINS,
     API_PUBLIC_URL,
+    CRON_SECRET: cronSecret,
+    RECORDATORIOS_CRON_ENABLED: recordatoriosCronEnabled,
+    RECORDATORIOS_WEBHOOK_URL: recordatoriosWebhookUrl,
+    RECORDATORIOS_WEBHOOK_SECRET: recordatoriosWebhookSecret,
   });
 }

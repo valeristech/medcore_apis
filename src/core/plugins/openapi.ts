@@ -83,6 +83,11 @@ export async function registerOpenApi(app: FastifyInstance, env: AppEnv) {
             'Crear, reagendar (`PUT /api/citas/:id`) y cancelar (`POST /api/citas/:id/cancelar`) citas. Validación de tenant, conflictos, disponibilidad y sugerencia de lista de espera al cancelar.',
         },
         {
+          name: 'Agenda / Recordatorios',
+          description:
+            'Plantillas por canal (whatsapp, sms, email) y job horario UC-AGE-005. Ejecución manual/cron: `POST /api/agenda/recordatorios/ejecutar` con `X-Cron-Secret`.',
+        },
+        {
           name: 'Pacientes',
           description:
             'Alta y mantenimiento de pacientes por tenant (`paciente` + `paciente_organizacion`), búsqueda, perfil, alergias y seguros.',

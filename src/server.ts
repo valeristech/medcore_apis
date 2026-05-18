@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { loadEnv } from './core/env.js';
 import { buildApp } from './app.js';
+import { startRecordatorioScheduler } from './core/jobs/recordatorio.scheduler.js';
 
 const env = loadEnv();
 
@@ -9,6 +10,8 @@ const startServer = async () => {
     const app = await buildApp(env);
 
     await app.listen({ port: env.PORT, host: '0.0.0.0' });
+
+    startRecordatorioScheduler(app, env);
 
     app.log.info(`Servidor escuchando en puerto ${env.PORT} (${env.NODE_ENV})`);
   } catch (err) {
