@@ -9,6 +9,7 @@ import {
   ventanasDesdeReglasParaDia,
   type IntervalMs,
 } from '../disponibilidad/disponibilidad.calendario.js';
+import { listaEsperaService } from '../lista-espera/lista-espera.service.js';
 import { assertDuracionMinutos } from '../tipo-cita/tipo-cita.validation.js';
 import {
   ALERTA_TIPO_PERSONALIZADA,
@@ -34,11 +35,6 @@ const CITA_INCLUDE = {
   consultorio: { select: { id: true, nombre: true, sede_id: true } },
   sede: { select: { id: true, nombre: true } },
   tipo_cita: { select: { id: true, nombre: true, duracion_minutos: true, color: true } },
-} as const;
-
-const LISTA_ESPERA_INCLUDE = {
-  paciente: { select: { id: true, nombre: true, apellido: true, telefono: true } },
-  tipo_cita: { select: { id: true, nombre: true } },
 } as const;
 
 type CitaPayload = Prisma.citaGetPayload<{ include: typeof CITA_INCLUDE }>;
@@ -378,46 +374,6 @@ export class CitaService {
     return { inicio, fin, tipo };
   }
 
-  private async findListaEsperaSugerencia(cita: CitaPayload) {
-    const where: Prisma.lista_esperaWhereInput = {
-      deleted: false,
-      estado: 'activa',
-      OR: [{ usuario_id: cita.usuario_id }, { usuario_id: null }],
-      AND: [
-        {
-          OR: [{ tipo_cita_id: cita.tipo_cita_id }, { tipo_cita_id: null }],
-        },
-      ],
-    };
-
-    const [total, items] = await prisma.$transaction([
-      prisma.lista_espera.count({ where }),
-      prisma.lista_espera.findMany({
-        where,
-        include: LISTA_ESPERA_INCLUDE,
-        orderBy: { fecha_solicitud: 'asc' },
-        take: 10,
-      }),
-    ]);
-
-    if (total === 0) return undefined;
-
-    return {
-      total,
-      items: items.map((row) => ({
-        id: row.id,
-        paciente_id: row.paciente_id,
-        paciente: row.paciente,
-        tipo_cita_id: row.tipo_cita_id,
-        tipo_cita: row.tipo_cita,
-        usuario_id: row.usuario_id,
-        fecha_desde: row.fecha_desde?.toISOString().slice(0, 10) ?? null,
-        fecha_hasta: row.fecha_hasta?.toISOString().slice(0, 10) ?? null,
-        notas: row.notas,
-      })),
-    };
-  }
-
   async getCitaForAudit(citaId: string, tenantOrgId: string) {
     const cita = await this.getCitaTenantOr404(citaId, tenantOrgId);
     return mapCita(cita);
@@ -515,7 +471,11 @@ export class CitaService {
       throw new HttpError(400, 'MOTIVO_REQUERIDO', 'El motivo de cancelación es obligatorio.');
     }
 
-    const lista_espera = await this.findListaEsperaSugerencia(current);
+    const lista_espera = await listaEsperaService.sugerenciasParaCita(tenantOrgId, {
+      usuario_id: current.usuario_id,
+      tipo_cita_id: current.tipo_cita_id,
+      fecha: current.fecha_hora_inicio.toISOString().slice(0, 10),
+    });
 
     const updated = await prisma.cita.update({
       where: { id: citaId },
