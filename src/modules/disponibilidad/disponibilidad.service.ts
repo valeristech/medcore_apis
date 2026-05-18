@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import prisma from '../../config/prisma.js';
+import { CITA_ESTADOS_CANCELADOS } from '../citas/cita.constants.js';
 import { HttpError } from '../../core/errors.js';
 import {
   assertIsoDateRange,
@@ -364,7 +365,7 @@ export class DisponibilidadService {
           usuario_id: query.usuario_id,
           consultorio_id: query.consultorio_id,
           deleted: false,
-          estado: { notIn: ['cancelada', 'cancelado'] },
+          estado: { notIn: [...CITA_ESTADOS_CANCELADOS] },
           sede: { organizacion_id: tenantOrgId, deleted: false },
           fecha_hora_inicio: { lte: hastaUtc },
           fecha_hora_fin: { gte: desdeUtc },

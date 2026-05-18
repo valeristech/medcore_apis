@@ -73,6 +73,26 @@ export async function registerOpenApi(app: FastifyInstance, env: AppEnv) {
             'Reglas de disponibilidad (`regla_disponibilidad`) y calendario con zona IANA (default Guatemala vía `organizacion.zona_horaria` o `America/Guatemala`): reglas + citas, ventanas y huecos por slot.',
         },
         {
+          name: 'Agenda / Tipos de cita',
+          description:
+            'Catálogo por organización: nombre, duración, color y flag de telemedicina. Usado al agendar citas y en reportes.',
+        },
+        {
+          name: 'Agenda / Citas',
+          description:
+            'Crear, reagendar (`PUT /api/citas/:id`), cancelar (`POST /api/citas/:id/cancelar`) y marcar no-show (`PUT /api/citas/:id/no-show`). Validación de tenant, conflictos, disponibilidad y alertas de seguimiento.',
+        },
+        {
+          name: 'Agenda / Recordatorios',
+          description:
+            'Plantillas por canal (whatsapp, sms, email) y job horario UC-AGE-005. Ejecución manual/cron: `POST /api/agenda/recordatorios/ejecutar` con `X-Cron-Secret`.',
+        },
+        {
+          name: 'Agenda / Lista de espera',
+          description:
+            'UC-AGE-007: alta y gestión de pacientes sin disponibilidad. Sugerencias FIFO al liberar un slot (`GET /api/lista-espera/sugerencias` o en cancelar cita).',
+        },
+        {
           name: 'Pacientes',
           description:
             'Alta y mantenimiento de pacientes por tenant (`paciente` + `paciente_organizacion`), búsqueda, perfil, alergias y seguros.',

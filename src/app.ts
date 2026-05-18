@@ -9,6 +9,8 @@ import { registerOpenApi, registerScalarDocs } from './core/plugins/openapi.js';
 import { registerRequestContext } from './core/plugins/requestContext.js';
 import { auditLogRoutes } from './modules/audit-log/audit-log.routes.js';
 import { authRoutesPlugin } from './modules/auth/auth.routes.js';
+import { citaRoutes } from './modules/citas/cita.routes.js';
+import { tipoCitaRoutes } from './modules/tipo-cita/tipo-cita.routes.js';
 import { disponibilidadRoutes } from './modules/disponibilidad/disponibilidad.routes.js';
 import { geoCatalogRoutes } from './modules/geo-catalog/geo-catalog.routes.js';
 import { healthRouteSchema } from './modules/health/health.schemas.js';
@@ -17,6 +19,8 @@ import { organizacionRoutes } from './modules/organizaciones/organizacion.routes
 import { roleRoutes } from './modules/roles/role.routes.js';
 import { sedeRoutes } from './modules/sedes/sede.routes.js';
 import { userRoutes } from './modules/usuarios/user.routes.js';
+import { recordatorioRoutes } from './modules/recordatorios/recordatorio.routes.js';
+import { listaEsperaRoutes } from './modules/lista-espera/lista-espera.routes.js';
 
 export const buildApp = async (env: AppEnv) => {
   const logger =
@@ -79,8 +83,12 @@ export const buildApp = async (env: AppEnv) => {
   await app.register(userRoutes, { prefix: '/api' });
   await app.register(auditLogRoutes, { prefix: '/api' });
   await app.register(disponibilidadRoutes, { prefix: '/api/disponibilidad' });
+  await app.register(citaRoutes, { prefix: '/api/citas' });
+  await app.register(tipoCitaRoutes, { prefix: '/api/tipos-cita' });
   await app.register(geoCatalogRoutes, { prefix: '/api' });
   await app.register(pacienteRoutes, { prefix: '/api' });
+  await app.register(recordatorioRoutes(env), { prefix: '/api/agenda/recordatorios' });
+  await app.register(listaEsperaRoutes, { prefix: '/api/lista-espera' });
 
   await registerScalarDocs(app);
 

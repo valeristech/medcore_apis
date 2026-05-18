@@ -216,6 +216,7 @@ model cita {
   indicacion_seguimiento     indicacion_seguimiento[]
   orden_compra               orden_compra[]
   plan_seguimiento_actividad plan_seguimiento_actividad[]
+  recordatorio_envios        cita_recordatorio_envio[]
 
   @@index([consultorio_id], map: "idx_cita_consultorio")
   @@index([estado], map: "idx_cita_estado")
@@ -1091,7 +1092,26 @@ model plantilla_recordatorio {
   created_at      DateTime?    @default(now()) @db.Timestamp(6)
   deleted         Boolean?     @default(false)
   deleted_at      DateTime?    @db.Timestamp(6)
-  organizacion    organizacion @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizacion        organizacion              @relation(fields: [organizacion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recordatorio_envios cita_recordatorio_envio[]
+}
+
+/// Registro idempotente de recordatorios enviados por cita y plantilla (UC-AGE-005).
+model cita_recordatorio_envio {
+  id                        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cita_id                   String                 @db.Uuid
+  plantilla_recordatorio_id String                 @db.Uuid
+  canal                     String                 @db.VarChar(20)
+  destino                   String?                @db.VarChar(200)
+  estado                    String                 @default("enviado") @db.VarChar(20)
+  error_mensaje             String?
+  enviado_at                DateTime?              @default(now()) @db.Timestamp(6)
+  cita                      cita                   @relation(fields: [cita_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plantilla_recordatorio    plantilla_recordatorio @relation(fields: [plantilla_recordatorio_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cita_id, plantilla_recordatorio_id], map: "uq_cita_recordatorio_envio")
+  @@index([cita_id], map: "idx_cita_recordatorio_envio_cita")
+  @@index([plantilla_recordatorio_id], map: "idx_cita_recordatorio_envio_plantilla")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
