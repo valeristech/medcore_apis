@@ -80,7 +80,7 @@ export async function registerOpenApi(app: FastifyInstance, env: AppEnv) {
         {
           name: 'Agenda / Citas',
           description:
-            'Crear, reagendar (`PUT /api/citas/:id`) y cancelar (`POST /api/citas/:id/cancelar`) citas. Validación de tenant, conflictos, disponibilidad y sugerencia de lista de espera al cancelar.',
+            'Crear, reagendar (`PUT /api/citas/:id`), cancelar (`POST /api/citas/:id/cancelar`) y marcar no-show (`PUT /api/citas/:id/no-show`). Validación de tenant, conflictos, disponibilidad y alertas de seguimiento.',
         },
         {
           name: 'Agenda / Recordatorios',

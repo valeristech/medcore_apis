@@ -5,7 +5,12 @@ import { requireAuth } from '../../core/auth/requireAuth.js';
 import { requirePermission } from '../../core/auth/requirePermission.js';
 import { sendFail } from '../../core/http/response.js';
 import { citaController } from './cita.controller.js';
-import { cancelarCitaSchema, crearCitaSchema, reagendarCitaSchema } from './cita.schemas.js';
+import {
+  cancelarCitaSchema,
+  crearCitaSchema,
+  marcarNoShowCitaSchema,
+  reagendarCitaSchema,
+} from './cita.schemas.js';
 
 const pAgendaCrear = requirePermission('agenda', 'crear');
 const pAgendaEditar = requirePermission('agenda', 'editar');
@@ -48,5 +53,11 @@ export const citaRoutes: FastifyPluginAsync = async (app) => {
     '/:id/cancelar',
     { ...cancelarCitaSchema, preHandler: [requireAuth, pAgendaCancelar] },
     citaController.cancel,
+  );
+
+  app.put(
+    '/:id/no-show',
+    { ...marcarNoShowCitaSchema, preHandler: [requireAuth, pAgendaEditar] },
+    citaController.markNoShow,
   );
 };

@@ -2,7 +2,12 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { writeAuditLog } from '../../core/audit/auditLog.js';
 import { sendOk } from '../../core/http/response.js';
 import { citaService } from './cita.service.js';
-import type { CancelCitaInput, CreateCitaInput, RescheduleCitaInput } from './cita.schemas.js';
+import type {
+  CancelCitaInput,
+  CreateCitaInput,
+  MarkNoShowInput,
+  RescheduleCitaInput,
+} from './cita.schemas.js';
 
 type IdParams = { id: string };
 
@@ -59,6 +64,26 @@ export const citaController = {
       descripcion: `Cita cancelada: ${result.cita.motivo_cancelacion ?? ''}`,
       datosAntes: before,
       datosDespues: result.cita,
+    });
+
+    return sendOk(reply, request.requestId, result);
+  },
+
+  async markNoShow(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = request.params as IdParams;
+    const tenantOrgId = request.user.organizacion_id;
+    const before = await citaService.getCitaForAudit(id, tenantOrgId);
+    const result = await citaService.markNoShow(id, tenantOrgId, request.body as MarkNoShowInput);
+
+    await writeAuditLog({
+      request,
+      organizacionId: tenantOrgId,
+      accion: 'no_show',
+      recurso: 'citas',
+      recursoId: id,
+      descripcion: 'Cita marcada como no asistió.',
+      datosAntes: before,
+      datosDespues: { cita: result.cita, alerta_id: result.alerta?.id ?? null },
     });
 
     return sendOk(reply, request.requestId, result);

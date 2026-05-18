@@ -11,14 +11,22 @@ import {
 } from '../disponibilidad/disponibilidad.calendario.js';
 import { assertDuracionMinutos } from '../tipo-cita/tipo-cita.validation.js';
 import {
+  ALERTA_TIPO_PERSONALIZADA,
   CITA_ESTADO_CANCELADA,
   CITA_ESTADO_DEFAULT,
+  CITA_ESTADO_NO_ASISTIO,
   CITA_ESTADOS_CANCELADOS,
+  CITA_ESTADOS_MARCABLES_NO_SHOW,
   CITA_ESTADOS_NO_MODIFICABLES,
   CITA_ESTADOS_REAGENDABLES,
 } from './cita.constants.js';
 import { assertRangoCitaValido, parseCitaInstant, resolveCitaFin } from './cita.scheduling.js';
-import type { CancelCitaInput, CreateCitaInput, RescheduleCitaInput } from './cita.schemas.js';
+import type {
+  CancelCitaInput,
+  CreateCitaInput,
+  MarkNoShowInput,
+  RescheduleCitaInput,
+} from './cita.schemas.js';
 
 const CITA_INCLUDE = {
   paciente: { select: { id: true, nombre: true, apellido: true } },
@@ -90,6 +98,19 @@ function assertEstadoCancelable(estado: string): void {
       409,
       'ESTADO_NO_CANCELABLE',
       `No se puede cancelar una cita en estado "${estado}".`,
+    );
+  }
+}
+
+function assertEstadoMarcableNoShow(estado: string): void {
+  if (estado === CITA_ESTADO_NO_ASISTIO || estado === 'no_asistió') {
+    throw new HttpError(409, 'YA_NO_ASISTIO', 'La cita ya está marcada como no asistió.');
+  }
+  if (!(CITA_ESTADOS_MARCABLES_NO_SHOW as readonly string[]).includes(estado)) {
+    throw new HttpError(
+      409,
+      'ESTADO_NO_MARCABLE',
+      `No se puede marcar no-show en estado "${estado}". Solo: ${CITA_ESTADOS_MARCABLES_NO_SHOW.join(', ')}.`,
     );
   }
 }
@@ -509,6 +530,83 @@ export class CitaService {
     return {
       cita: mapCita(updated),
       lista_espera,
+    };
+  }
+
+  async markNoShow(citaId: string, tenantOrgId: string, input: MarkNoShowInput) {
+    const current = await this.getCitaTenantOr404(citaId, tenantOrgId);
+    assertEstadoMarcableNoShow(current.estado);
+
+    const now = new Date();
+    if (current.fecha_hora_inicio.getTime() > now.getTime()) {
+      throw new HttpError(
+        400,
+        'CITA_FUTURA',
+        'No se puede marcar no-show antes de la hora de inicio de la cita.',
+      );
+    }
+
+    const notasExtra = cleanStr(input.notas);
+    const crearAlerta = input.crear_alerta !== false;
+    const prioridad = input.prioridad_alerta?.trim() || 'normal';
+
+    const notasActualizadas =
+      notasExtra !== undefined
+        ? [current.notas?.trim(), `No-show: ${notasExtra}`].filter(Boolean).join('\n') || null
+        : current.notas;
+
+    const pacienteNombre = `${current.paciente.nombre} ${current.paciente.apellido}`.trim();
+    const medicoNombre = `${current.usuario.nombre} ${current.usuario.apellido}`.trim();
+
+    const result = await prisma.$transaction(async (tx) => {
+      const cita = await tx.cita.update({
+        where: { id: citaId },
+        data: {
+          estado: CITA_ESTADO_NO_ASISTIO,
+          notas: notasActualizadas ?? null,
+          updated_at: new Date(),
+        },
+        include: CITA_INCLUDE,
+      });
+
+      let alerta: {
+        id: string;
+        titulo: string;
+        tipo: string;
+        prioridad: string | null;
+      } | null = null;
+
+      if (crearAlerta) {
+        const titulo = `No asistió a cita — ${pacienteNombre}`;
+        const descripcion = [
+          `Cita del ${cita.fecha_hora_inicio.toISOString()} con ${medicoNombre} en ${cita.sede.nombre}.`,
+          notasExtra ? `Notas: ${notasExtra}` : null,
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+        alerta = await tx.alerta_preventiva.create({
+          data: {
+            organizacion_id: tenantOrgId,
+            paciente_id: cita.paciente_id,
+            tipo: ALERTA_TIPO_PERSONALIZADA,
+            titulo,
+            descripcion,
+            prioridad,
+            estado: 'activa',
+            visible_para: 'ambos',
+            deleted: false,
+          },
+          select: { id: true, titulo: true, tipo: true, prioridad: true },
+        });
+      }
+
+      return { cita, alerta };
+    });
+
+    return {
+      cita: mapCita(result.cita),
+      alerta: result.alerta,
     };
   }
 }

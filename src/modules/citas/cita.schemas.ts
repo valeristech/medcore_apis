@@ -29,6 +29,13 @@ export type CancelCitaInput = {
   motivo_cancelacion: string;
 };
 
+export type MarkNoShowInput = {
+  notas?: string;
+  /** Default `true`: crea `alerta_preventiva` para seguimiento. */
+  crear_alerta?: boolean;
+  prioridad_alerta?: 'baja' | 'normal' | 'alta' | 'critica';
+};
+
 const envelopeMeta = {
   type: 'object',
   required: ['requestId'],
@@ -293,6 +300,62 @@ export const cancelarCitaSchema = {
             properties: {
               cita: citaShape,
               lista_espera: { ...listaEsperaSugerenciaShape, nullable: true },
+            },
+          },
+          meta: { type: 'object', properties: metaProperties },
+        },
+      },
+      400: errorEnvelope,
+      401: errorEnvelope,
+      403: errorEnvelope,
+      404: errorEnvelope,
+      409: errorEnvelope,
+    },
+  },
+} as const;
+
+const alertaResumenShape = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', format: 'uuid' },
+    titulo: { type: 'string' },
+    tipo: { type: 'string' },
+    prioridad: { type: 'string', nullable: true },
+  },
+} as const;
+
+export const marcarNoShowCitaSchema = {
+  schema: {
+    tags: ['Agenda / Citas'],
+    summary: 'Marcar cita como no-show (no asistió)',
+    description:
+      'Marca la cita como `no_asistio` si ya pasó su hora de inicio y estaba `programada` o `confirmada`. Opcionalmente crea `alerta_preventiva` para seguimiento.',
+    security: [{ bearerAuth: [] }],
+    params: idParam,
+    body: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        notas: { type: 'string', maxLength: 2000, description: 'Observación de la secretaría.' },
+        crear_alerta: { type: 'boolean', default: true },
+        prioridad_alerta: {
+          type: 'string',
+          enum: ['baja', 'normal', 'alta', 'critica'],
+          default: 'normal',
+        },
+      },
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          data: {
+            type: 'object',
+            required: ['cita'],
+            properties: {
+              cita: citaShape,
+              alerta: { ...alertaResumenShape, nullable: true },
             },
           },
           meta: { type: 'object', properties: metaProperties },
