@@ -11,6 +11,11 @@ export type AppEnv = Readonly<{
   JWT_REFRESH_DAYS: number;
   /** Orígenes permitidos para CORS (URLs del frontend, separadas por coma). */
   CORS_ORIGINS: readonly string[];
+  /**
+   * URL pública del API (sin barra final), para OpenAPI/Scalar y clientes.
+   * Orden: PUBLIC_URL → API_BASE_URL → RENDER_EXTERNAL_URL → http://localhost:PORT
+   */
+  API_PUBLIC_URL: string;
 }>;
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -28,6 +33,16 @@ function parseNodeEnv(raw: string | undefined): NodeEnv {
   throw new Error(
     `NODE_ENV inválido: "${raw}". Valores permitidos: development, production, test.`,
   );
+}
+
+function resolveApiPublicUrl(port: number): string {
+  const raw =
+    process.env.PUBLIC_URL?.trim() ||
+    process.env.API_BASE_URL?.trim() ||
+    process.env.RENDER_EXTERNAL_URL?.trim() ||
+    '';
+  if (raw) return raw.replace(/\/$/, '');
+  return `http://localhost:${port}`;
 }
 
 function parseCorsOrigins(raw: string | undefined): readonly string[] {
@@ -81,6 +96,7 @@ export function loadEnv(): AppEnv {
     process.env.JWT_ACCESS_EXPIRES_IN?.trim() || '15m';
   const JWT_REFRESH_DAYS = parseJwtRefreshDays(process.env.JWT_REFRESH_DAYS);
   const CORS_ORIGINS = parseCorsOrigins(process.env.CORS_ORIGINS);
+  const API_PUBLIC_URL = resolveApiPublicUrl(PORT);
 
   return Object.freeze({
     NODE_ENV,
@@ -90,5 +106,6 @@ export function loadEnv(): AppEnv {
     JWT_ACCESS_EXPIRES_IN,
     JWT_REFRESH_DAYS,
     CORS_ORIGINS,
+    API_PUBLIC_URL,
   });
 }
