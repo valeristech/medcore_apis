@@ -37,7 +37,7 @@ export const buildApp = async (env: AppEnv) => {
 
   await registerCors(app, env);
 
-  await registerOpenApi(app);
+  await registerOpenApi(app, env);
 
   await registerRequestContext(app);
   await registerAuditAccess(app);

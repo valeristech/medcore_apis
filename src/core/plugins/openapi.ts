@@ -1,8 +1,27 @@
 import swagger from '@fastify/swagger';
 import scalar from '@scalar/fastify-api-reference';
 import type { FastifyInstance } from 'fastify';
+import type { AppEnv } from '../env.js';
 
-export async function registerOpenApi(app: FastifyInstance) {
+function buildOpenApiServers(env: AppEnv): { url: string; description: string }[] {
+  const local = `http://localhost:${env.PORT}`;
+
+  if (env.NODE_ENV === 'development') {
+    const servers: { url: string; description: string }[] = [
+      { url: local, description: `Local (puerto ${env.PORT})` },
+    ];
+    if (env.API_PUBLIC_URL !== local) {
+      servers.push({ url: env.API_PUBLIC_URL, description: 'Desplegado / remoto' });
+    }
+    return servers;
+  }
+
+  return [{ url: env.API_PUBLIC_URL, description: 'API' }];
+}
+
+export async function registerOpenApi(app: FastifyInstance, env: AppEnv) {
+  const servers = buildOpenApiServers(env);
+
   await app.register(swagger, {
     openapi: {
       openapi: '3.0.3',
@@ -11,6 +30,7 @@ export async function registerOpenApi(app: FastifyInstance) {
         description: 'API REST del backend MediCore.',
         version: '1.0.0',
       },
+      servers,
       tags: [
         { name: 'Sistema', description: 'Salud del servicio' },
         {
@@ -71,6 +91,8 @@ export async function registerOpenApi(app: FastifyInstance) {
       },
     },
   });
+
+  app.log.info({ servers }, 'OpenAPI servers (Scalar /docs)');
 }
 
 /**
