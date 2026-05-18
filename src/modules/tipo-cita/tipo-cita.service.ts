@@ -1,10 +1,12 @@
 import type { Prisma } from '@prisma/client';
 import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
-import type {
-  CreateTipoCitaInput,
-  ListTiposCitaQuery,
-  UpdateTipoCitaInput,
+import {
+  TIPO_CITA_SORT_BY_VALUES,
+  type CreateTipoCitaInput,
+  type ListTiposCitaQuery,
+  type TipoCitaSortBy,
+  type UpdateTipoCitaInput,
 } from './tipo-cita.schemas.js';
 import { assertDuracionMinutos, normalizeTipoCitaColor } from './tipo-cita.validation.js';
 
@@ -44,7 +46,23 @@ export class TipoCitaService {
     }
   }
 
+  private resolveSort(query: ListTiposCitaQuery): {
+    sortBy: TipoCitaSortBy;
+    sortOrder: 'asc' | 'desc';
+  } {
+    const sortBy = query.sortBy ?? 'nombre';
+    if (!TIPO_CITA_SORT_BY_VALUES.includes(sortBy)) {
+      throw new HttpError(400, 'SORT_BY_INVALIDO', `sortBy debe ser uno de: ${TIPO_CITA_SORT_BY_VALUES.join(', ')}.`);
+    }
+    const sortOrder = query.sortOrder === 'desc' ? 'desc' : 'asc';
+    return { sortBy, sortOrder };
+  }
+
   async list(tenantOrgId: string, query: ListTiposCitaQuery) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const { sortBy, sortOrder } = this.resolveSort(query);
+
     const q = query.q?.trim();
     const activoFilter =
       query.incluir_inactivos === true ? {} : { activo: true as const };
@@ -56,11 +74,30 @@ export class TipoCitaService {
       ...(q ? { nombre: { contains: q, mode: 'insensitive' } } : {}),
     };
 
-    const items = await prisma.tipo_cita.findMany({
-      where,
-      orderBy: [{ nombre: 'asc' }],
-    });
-    return { items };
+    const [total, items] = await prisma.$transaction([
+      prisma.tipo_cita.count({ where }),
+      prisma.tipo_cita.findMany({
+        where,
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+      sort: { sortBy, sortOrder },
+      filters: {
+        q: q || undefined,
+        incluir_inactivos: query.incluir_inactivos,
+      },
+    };
   }
 
   async create(tenantOrgId: string, input: CreateTipoCitaInput) {

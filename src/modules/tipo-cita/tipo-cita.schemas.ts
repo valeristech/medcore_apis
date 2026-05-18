@@ -33,9 +33,16 @@ export type CreateTipoCitaInput = {
 
 export type UpdateTipoCitaInput = Partial<CreateTipoCitaInput>;
 
+export const TIPO_CITA_SORT_BY_VALUES = ['nombre', 'duracion_minutos', 'created_at'] as const;
+export type TipoCitaSortBy = (typeof TIPO_CITA_SORT_BY_VALUES)[number];
+
 export type ListTiposCitaQuery = {
   q?: string;
   incluir_inactivos?: boolean;
+  page?: number;
+  pageSize?: number;
+  sortBy?: TipoCitaSortBy;
+  sortOrder?: 'asc' | 'desc';
 };
 
 const tipoCitaShape = {
@@ -77,6 +84,8 @@ export const listTiposCitaSchema = {
   schema: {
     tags: ['Agenda / Tipos de cita'],
     summary: 'Listar tipos de cita del tenant',
+    description:
+      'Filtros: `q` (nombre), `incluir_inactivos`. Paginación: `page` (default 1), `pageSize` (default 20, max 100). Orden: `sortBy` (nombre|duracion_minutos|created_at, default nombre) y `sortOrder` (asc|desc, default asc).',
     security: [{ bearerAuth: [] }],
     querystring: {
       type: 'object',
@@ -84,6 +93,26 @@ export const listTiposCitaSchema = {
       properties: {
         q: { type: 'string', description: 'Filtro por nombre (contains, case-insensitive).' },
         incluir_inactivos: { type: 'boolean', default: false },
+        page: { type: 'integer', minimum: 1, default: 1, description: 'Número de página (base 1).' },
+        pageSize: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 100,
+          default: 20,
+          description: 'Tamaño de página (máximo 100).',
+        },
+        sortBy: {
+          type: 'string',
+          enum: [...TIPO_CITA_SORT_BY_VALUES],
+          default: 'nombre',
+          description: 'Campo por el cual ordenar.',
+        },
+        sortOrder: {
+          type: 'string',
+          enum: ['asc', 'desc'],
+          default: 'asc',
+          description: 'Dirección del ordenamiento.',
+        },
       },
     },
     response: {
@@ -94,8 +123,35 @@ export const listTiposCitaSchema = {
           success: { type: 'boolean', enum: [true] },
           data: {
             type: 'object',
-            required: ['items'],
-            properties: { items: { type: 'array', items: tipoCitaShape } },
+            required: ['items', 'pagination', 'sort'],
+            properties: {
+              items: { type: 'array', items: tipoCitaShape },
+              pagination: {
+                type: 'object',
+                required: ['page', 'pageSize', 'total', 'totalPages'],
+                properties: {
+                  page: { type: 'integer' },
+                  pageSize: { type: 'integer' },
+                  total: { type: 'integer' },
+                  totalPages: { type: 'integer' },
+                },
+              },
+              sort: {
+                type: 'object',
+                required: ['sortBy', 'sortOrder'],
+                properties: {
+                  sortBy: { type: 'string', enum: [...TIPO_CITA_SORT_BY_VALUES] },
+                  sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+                },
+              },
+              filters: {
+                type: 'object',
+                properties: {
+                  q: { type: 'string', nullable: true },
+                  incluir_inactivos: { type: 'boolean', nullable: true },
+                },
+              },
+            },
           },
           meta: envelopeMeta,
         },
