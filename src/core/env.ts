@@ -9,6 +9,8 @@ export type AppEnv = Readonly<{
   JWT_ACCESS_EXPIRES_IN: string;
   /** Días de validez del refresh token opaco. */
   JWT_REFRESH_DAYS: number;
+  /** Orígenes permitidos para CORS (URLs del frontend, separadas por coma). */
+  CORS_ORIGINS: readonly string[];
 }>;
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -25,6 +27,16 @@ function parseNodeEnv(raw: string | undefined): NodeEnv {
   if (v === 'development' || v === 'production' || v === 'test') return v;
   throw new Error(
     `NODE_ENV inválido: "${raw}". Valores permitidos: development, production, test.`,
+  );
+}
+
+function parseCorsOrigins(raw: string | undefined): readonly string[] {
+  if (!raw || raw.trim() === '') return [];
+  return Object.freeze(
+    raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
   );
 }
 
@@ -68,6 +80,7 @@ export function loadEnv(): AppEnv {
   const JWT_ACCESS_EXPIRES_IN =
     process.env.JWT_ACCESS_EXPIRES_IN?.trim() || '15m';
   const JWT_REFRESH_DAYS = parseJwtRefreshDays(process.env.JWT_REFRESH_DAYS);
+  const CORS_ORIGINS = parseCorsOrigins(process.env.CORS_ORIGINS);
 
   return Object.freeze({
     NODE_ENV,
@@ -76,5 +89,6 @@ export function loadEnv(): AppEnv {
     DATABASE_URL,
     JWT_ACCESS_EXPIRES_IN,
     JWT_REFRESH_DAYS,
+    CORS_ORIGINS,
   });
 }

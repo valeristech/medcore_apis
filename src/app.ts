@@ -1,9 +1,9 @@
 import Fastify from 'fastify';
-import fastifyCors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import type { AppEnv } from './core/env.js';
 import { registerAuditAccess } from './core/plugins/auditAccess.js';
+import { registerCors } from './core/plugins/cors.js';
 import { registerErrorHandler } from './core/plugins/errorHandler.js';
 import { registerOpenApi, registerScalarDocs } from './core/plugins/openapi.js';
 import { registerRequestContext } from './core/plugins/requestContext.js';
@@ -35,12 +35,7 @@ export const buildApp = async (env: AppEnv) => {
 
   const app = Fastify({ logger });
 
-  await app.register(fastifyCors, {
-    origin: true, // permite cualquier origen (en producción puedes poner tu dominio)
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  });
+  await registerCors(app, env);
 
   await registerOpenApi(app);
 
