@@ -80,7 +80,7 @@ export async function registerOpenApi(app: FastifyInstance, env: AppEnv) {
         {
           name: 'Agenda / Citas',
           description:
-            'Alta y gestión de citas: validación de tenant (paciente, médico, sede, consultorio, tipo de cita), detección de conflictos de horario y horario dentro de disponibilidad.',
+            'Crear, reagendar (`PUT /api/citas/:id`) y cancelar (`POST /api/citas/:id/cancelar`) citas. Validación de tenant, conflictos, disponibilidad y sugerencia de lista de espera al cancelar.',
         },
         {
           name: 'Pacientes',

@@ -27,7 +27,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
     descripcion: 'Gestión clínica y agenda operativa.',
     permisos: {
       auth: ['me'],
-      agenda: ['leer', 'crear', 'editar'],
+      agenda: ['leer', 'crear', 'editar', 'cancelar'],
       hce: ['leer', 'crear', 'editar'],
       seguimiento: ['leer', 'crear', 'editar'],
       telemedicina: ['leer', 'crear'],
