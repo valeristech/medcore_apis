@@ -11,6 +11,8 @@ import {
   eliminarPacienteSchema,
   crearAlergiaSchema,
   listarAlergiasSchema,
+  obtenerAlergiaSchema,
+  actualizarAlergiaSchema,
   eliminarAlergiaSchema,
   crearSeguroSchema,
   listarSegurosSchema,
@@ -76,6 +78,18 @@ export const pacienteRoutes: FastifyPluginAsync = async (app) => {
     ...crearAlergiaSchema,
     preHandler: [requireAuth, pCrear],
   }, pacienteController.createAlergia);
+
+  /** GET /pacientes/:id/alergias/:alergiaId — Obtener alergia por ID */
+  app.get('/pacientes/:id/alergias/:alergiaId', {
+    ...obtenerAlergiaSchema,
+    preHandler: [requireAuth, pLeer],
+  }, pacienteController.getAlergia);
+
+  /** PATCH /pacientes/:id/alergias/:alergiaId — Actualizar alergia */
+  app.patch('/pacientes/:id/alergias/:alergiaId', {
+    ...actualizarAlergiaSchema,
+    preHandler: [requireAuth, pEditar],
+  }, pacienteController.updateAlergia);
 
   /** DELETE /pacientes/:id/alergias/:alergiaId — Eliminar alergia */
   app.delete('/pacientes/:id/alergias/:alergiaId', {

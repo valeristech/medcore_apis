@@ -8,10 +8,11 @@ import type {
   CreatePacienteInput,
   CreateSeguroInput,
   SearchPacientesQuery,
+  UpdateAlergiaInput,
   UpdatePacienteInput,
   UpdateSeguroInput,
 } from './paciente.schemas.js';
-import { PACIENTE_SORT_BY_VALUES, type PacienteSortBy } from './paciente.schemas.js';
+import {PACIENTE_SORT_BY_VALUES, type PacienteSortBy} from './paciente.schemas.js';
 
 const UBICACION_INCLUDE = {
   municipio: {
@@ -400,6 +401,34 @@ export class PacienteService {
     });
   }
 
+  async getAlergia(pacienteId: string, alergiaId: string, tenantOrgId: string) {
+    await this.getPacienteTenantOr404(pacienteId, tenantOrgId);
+    const alergia = await prisma.alergia.findFirst({
+      where: { id: alergiaId, paciente_id: pacienteId, deleted: false },
+    });
+    if (!alergia) throw new HttpError(404, 'NOT_FOUND', 'Alergia no encontrada.');
+    return alergia;
+  }
+
+  async updateAlergia(pacienteId: string, alergiaId: string, tenantOrgId: string, input: UpdateAlergiaInput) {
+    await this.getPacienteTenantOr404(pacienteId, tenantOrgId);
+
+    const alergia = await prisma.alergia.findFirst({
+      where: { id: alergiaId, paciente_id: pacienteId, deleted: false },
+    });
+    if (!alergia) throw new HttpError(404, 'NOT_FOUND', 'Alergia no encontrada.');
+
+    const data: Prisma.alergiaUncheckedUpdateInput = {};
+
+    if (input.sustancia     !== undefined) data.sustancia     = input.sustancia.trim();
+    if (input.tipo_reaccion !== undefined) data.tipo_reaccion = cleanStr(input.tipo_reaccion) ?? null;
+    if (input.severidad     !== undefined) data.severidad     = input.severidad;
+    if (input.notas         !== undefined) data.notas         = cleanStr(input.notas) ?? null;
+    if (input.activo        !== undefined) data.activo        = input.activo;
+
+    return prisma.alergia.update({ where: { id: alergiaId }, data });
+  }
+
   async removeAlergia(pacienteId: string, alergiaId: string, tenantOrgId: string) {
     await this.getPacienteTenantOr404(pacienteId, tenantOrgId);
     const alergia = await prisma.alergia.findFirst({
@@ -487,3 +516,6 @@ export class PacienteService {
 }
 
 export const pacienteService = new PacienteService();
+
+// 95c5bc60-52a7-455d-93d8-b1531c24b96e
+// 14816507-5105-406e-8b99-94e693b57f5e

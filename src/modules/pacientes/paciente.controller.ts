@@ -7,6 +7,7 @@ import type {
   UpdatePacienteInput,
   SearchPacientesQuery,
   CreateAlergiaInput,
+  UpdateAlergiaInput,
   CreateSeguroInput,
   UpdateSeguroInput,
 } from './paciente.schemas.js';
@@ -138,6 +139,32 @@ export const pacienteController = {
     const tenantOrgId = request.user.organizacion_id;
     const alergias    = await pacienteService.listAlergias(id, tenantOrgId);
     return sendOk(reply, request.requestId, { items: alergias });
+  },
+
+  async getAlergia(request: FastifyRequest, reply: FastifyReply) {
+    const { id, alergiaId } = request.params as IdAlergiaParam;
+    const tenantOrgId       = request.user.organizacion_id;
+    const alergia           = await pacienteService.getAlergia(id, alergiaId, tenantOrgId);
+    return sendOk(reply, request.requestId, alergia);
+  },
+
+  async updateAlergia(request: FastifyRequest, reply: FastifyReply) {
+    const { id, alergiaId } = request.params as IdAlergiaParam;
+    const tenantOrgId       = request.user.organizacion_id;
+    const alergia           = await pacienteService.updateAlergia(id, alergiaId, tenantOrgId, request.body as UpdateAlergiaInput);
+
+    await writeAuditLog({
+      request,
+      organizacionId: tenantOrgId,
+      accion:        'actualizar',
+      recurso:       'pacientes/alergias',
+      recursoId:     alergiaId,
+      descripcion:   `Alergia actualizada: ${alergia.sustancia} (${alergia.severidad})`,
+      datosAntes:    undefined,
+      datosDespues:  request.body,
+    });
+
+    return sendOk(reply, request.requestId, alergia);
   },
 
   async removeAlergia(request: FastifyRequest, reply: FastifyReply) {

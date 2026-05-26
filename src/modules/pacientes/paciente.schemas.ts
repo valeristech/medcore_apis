@@ -60,6 +60,14 @@ export type CreateAlergiaInput = {
   notas?: string;
 };
 
+export type UpdateAlergiaInput = {
+  sustancia?: string;
+  tipo_reaccion?: string;
+  severidad?: SeveridadAlergia;
+  notas?: string;
+  activo?: boolean;
+};
+
 export type CreateSeguroInput = {
   aseguradora_id: string;
   numero_poliza: string;
@@ -438,6 +446,93 @@ export const eliminarAlergiaSchema = {
       properties: {
         id:        { type: 'string', format: 'uuid' },
         alergiaId: { type: 'string', format: 'uuid' },
+      },
+    },
+  },
+} as const;
+
+export const obtenerAlergiaSchema = {
+  schema: {
+    tags: ['Pacientes / Alergias'],
+    summary: 'Obtener alergia por ID',
+    security: [{ bearerAuth: [] }],
+    params: {
+      type: 'object',
+      required: ['id', 'alergiaId'],
+      properties: {
+        id:        { type: 'string', format: 'uuid' },
+        alergiaId: { type: 'string', format: 'uuid' },
+      },
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          data: {
+            type: 'object',
+            properties: {
+              id:            { type: 'string', format: 'uuid' },
+              paciente_id:   { type: 'string', format: 'uuid' },
+              sustancia:     { type: 'string' },
+              tipo_reaccion: { type: 'string', nullable: true },
+              severidad:     { type: 'string' },
+              notas:         { type: 'string', nullable: true },
+              activo:        { type: 'boolean', nullable: true },
+              created_at:    { type: 'string', nullable: true },
+            },
+          },
+          meta: { type: 'object', properties: metaProperties },
+        },
+      },
+    },
+  },
+} as const;
+
+export const actualizarAlergiaSchema = {
+  schema: {
+    tags: ['Pacientes / Alergias'],
+    summary: 'Actualizar alergia del paciente',
+    security: [{ bearerAuth: [] }],
+    params: {
+      type: 'object',
+      required: ['id', 'alergiaId'],
+      properties: {
+        id:        { type: 'string', format: 'uuid' },
+        alergiaId: { type: 'string', format: 'uuid' },
+      },
+    },
+    body: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        sustancia:     { type: 'string', minLength: 1, maxLength: 200 },
+        tipo_reaccion: { type: 'string', maxLength: 100 },
+        severidad:     { type: 'string', enum: SEVERIDAD_ALERGIA_VALUES },
+        notas:         { type: 'string' },
+        activo:        { type: 'boolean' },
+      },
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          data: {
+            type: 'object',
+            properties: {
+              id:            { type: 'string', format: 'uuid' },
+              paciente_id:   { type: 'string', format: 'uuid' },
+              sustancia:     { type: 'string' },
+              tipo_reaccion: { type: 'string', nullable: true },
+              severidad:     { type: 'string' },
+              notas:         { type: 'string', nullable: true },
+              activo:        { type: 'boolean', nullable: true },
+              created_at:    { type: 'string', nullable: true },
+            },
+          },
+          meta: { type: 'object', properties: metaProperties },
+        },
       },
     },
   },
