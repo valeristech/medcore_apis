@@ -9,6 +9,7 @@ import type {
   CreatePacienteInput,
   CreateSeguroInput,
   SearchPacientesQuery,
+  SearchSegurosQuery,
   UpdateAlergiaInput,
   UpdatePacienteInput,
   UpdateSeguroInput,
@@ -238,8 +239,8 @@ export const pacienteController = {
     const { id } = request.params as IdParam;
     const tenantOrgId = request.user.organizacion_id;
     await pacienteService.getPacienteTenantOr404(id, tenantOrgId);
-    const seguros = await seguroService.list(id);
-    return sendOk(reply, request.requestId, { items: seguros });
+    const result = await seguroService.list(id, request.query as SearchSegurosQuery);
+    return sendOk(reply, request.requestId, result);
   },
 
   async getSeguro(request: FastifyRequest, reply: FastifyReply) {

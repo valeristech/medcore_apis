@@ -21,6 +21,8 @@ import { sedeRoutes } from './modules/sedes/sede.routes.js';
 import { userRoutes } from './modules/usuarios/user.routes.js';
 import { recordatorioRoutes } from './modules/recordatorios/recordatorio.routes.js';
 import { listaEsperaRoutes } from './modules/lista-espera/lista-espera.routes.js';
+import { aseguradoraRoutes } from './modules/aseguradoras/aseguradora.routes.js';
+import { convenioAseguradoraRoutes } from './modules/convenios-aseguradora/convenio-aseguradora.routes.js';
 
 export const buildApp = async (env: AppEnv) => {
   const logger =
@@ -89,6 +91,8 @@ export const buildApp = async (env: AppEnv) => {
   await app.register(pacienteRoutes, { prefix: '/api' });
   await app.register(recordatorioRoutes(env), { prefix: '/api/agenda/recordatorios' });
   await app.register(listaEsperaRoutes, { prefix: '/api/lista-espera' });
+  await app.register(aseguradoraRoutes, { prefix: '/api' });
+  await app.register(convenioAseguradoraRoutes, { prefix: '/api' });
 
   await registerScalarDocs(app);
 

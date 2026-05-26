@@ -4,8 +4,11 @@ import { HttpError } from "../../core/errors.js";
 import { cleanStr } from "../../core/utils/strings.js";
 import type {
   CreateSeguroInput,
+  SearchSegurosQuery,
+  SeguroSortBy,
   UpdateSeguroInput,
 } from "./paciente.schemas.js";
+import { SEGURO_SORT_BY_VALUES } from "./paciente.schemas.js";
 
 const ASEGURADORA_SELECT = {
   aseguradora: { select: { id: true, nombre: true, nit: true } },
@@ -20,12 +23,45 @@ export class SeguroService {
     return seguro;
   }
 
-  async list(pacienteId: string) {
-    return prisma.paciente_seguro.findMany({
-      where: { paciente_id: pacienteId, deleted: false },
-      include: ASEGURADORA_SELECT,
-      orderBy: { created_at: "desc" },
-    });
+  async list(pacienteId: string, query: SearchSegurosQuery) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const rawSortBy = (query.sortBy ?? "created_at") as string;
+    const sortBy: SeguroSortBy = (
+      SEGURO_SORT_BY_VALUES as readonly string[]
+    ).includes(rawSortBy)
+      ? (rawSortBy as SeguroSortBy)
+      : "created_at";
+    const sortOrder = query.sortOrder ?? "desc";
+
+    const where: Prisma.paciente_seguroWhereInput = {
+      paciente_id: pacienteId,
+      deleted: false,
+      ...(query.activo !== undefined ? { activo: query.activo } : {}),
+    };
+
+    const [total, items] = await prisma.$transaction([
+      prisma.paciente_seguro.count({ where }),
+      prisma.paciente_seguro.findMany({
+        where,
+        include: ASEGURADORA_SELECT,
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+      sort: { sortBy, sortOrder },
+      filters: { activo: query.activo ?? null },
+    };
   }
 
   async getById(pacienteId: string, seguroId: string) {

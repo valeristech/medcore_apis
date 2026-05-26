@@ -84,6 +84,20 @@ export type UpdateSeguroInput = {
   activo?: boolean;
 };
 
+export const SEGURO_SORT_BY_VALUES = [
+  "created_at",
+  "vigencia_inicio",
+] as const;
+export type SeguroSortBy = (typeof SEGURO_SORT_BY_VALUES)[number];
+
+export type SearchSegurosQuery = {
+  activo?: boolean;
+  page?: number;
+  pageSize?: number;
+  sortBy?: SeguroSortBy;
+  sortOrder?: "asc" | "desc";
+};
+
 // ─── Schemas JSON (Fastify + OpenAPI) ────────────────────────────────────────
 
 const pacienteBaseProperties = {
@@ -638,6 +652,20 @@ export const listarSegurosSchema = {
       required: ["id"],
       properties: { id: { type: "string", format: "uuid" } },
     },
+    querystring: {
+      type: "object",
+      properties: {
+        activo: { type: "boolean" },
+        page: { type: "integer", minimum: 1, default: 1 },
+        pageSize: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+        sortBy: {
+          type: "string",
+          enum: [...SEGURO_SORT_BY_VALUES],
+          default: "created_at",
+        },
+        sortOrder: { type: "string", enum: ["asc", "desc"], default: "desc" },
+      },
+    },
     response: {
       200: {
         type: "object",
@@ -670,6 +698,28 @@ export const listarSegurosSchema = {
                       },
                     },
                   },
+                },
+              },
+              pagination: {
+                type: "object",
+                properties: {
+                  page: { type: "integer" },
+                  pageSize: { type: "integer" },
+                  total: { type: "integer" },
+                  totalPages: { type: "integer" },
+                },
+              },
+              sort: {
+                type: "object",
+                properties: {
+                  sortBy: { type: "string" },
+                  sortOrder: { type: "string" },
+                },
+              },
+              filters: {
+                type: "object",
+                properties: {
+                  activo: { type: "boolean", nullable: true },
                 },
               },
             },

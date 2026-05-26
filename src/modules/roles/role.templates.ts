@@ -19,6 +19,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
       consultorios: ['*'],
       roles: ['*'],
       catalogos_geo: ['*'],
+      aseguradoras: ['*'],  // catálogo global + convenios del tenant
     },
   },
   medico: {
@@ -32,6 +33,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
       seguimiento: ['leer', 'crear', 'editar'],
       telemedicina: ['leer', 'crear'],
       catalogos_geo: ['leer'],
+      aseguradoras: ['leer'],  // consultar aseguradoras disponibles
     },
   },
   secretaria: {
@@ -45,6 +47,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
       facturacion: ['leer', 'crear'],
       seguimiento: ['leer', 'editar'],
       catalogos_geo: ['leer'],
+      aseguradoras: ['leer', 'crear', 'editar'],  // gestionar convenios y seguros de pacientes
     },
   },
   enfermeria: {
