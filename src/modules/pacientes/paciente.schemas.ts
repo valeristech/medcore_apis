@@ -353,19 +353,89 @@ export const perfilPacienteSchema = {
               ...pacienteResponseProperties,
               alergias: {
                 type: "array",
-                items: { type: "object", additionalProperties: true },
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", format: "uuid" },
+                    paciente_id: { type: "string", format: "uuid" },
+                    sustancia: { type: "string" },
+                    tipo_reaccion: { type: "string", nullable: true },
+                    severidad: { type: "string" },
+                    notas: { type: "string", nullable: true },
+                    activo: { type: "boolean", nullable: true },
+                    created_at: { type: "string", nullable: true },
+                  },
+                },
               },
               seguros: {
                 type: "array",
-                items: { type: "object", additionalProperties: true },
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", format: "uuid" },
+                    paciente_id: { type: "string", format: "uuid" },
+                    aseguradora_id: { type: "string", format: "uuid" },
+                    numero_poliza: { type: "string" },
+                    tipo_plan: { type: "string", nullable: true },
+                    vigencia_inicio: { type: "string", nullable: true },
+                    vigencia_fin: { type: "string", nullable: true },
+                    activo: { type: "boolean", nullable: true },
+                    created_at: { type: "string", nullable: true },
+                    aseguradora: {
+                      type: "object",
+                      nullable: true,
+                      properties: {
+                        id: { type: "string", format: "uuid" },
+                        nombre: { type: "string" },
+                        nit: { type: "string", nullable: true },
+                      },
+                    },
+                  },
+                },
               },
               ultimos_encuentros: {
                 type: "array",
-                items: { type: "object", additionalProperties: true },
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", format: "uuid" },
+                    fecha: { type: "string", nullable: true },
+                    tipo: { type: "string", nullable: true },
+                    estado: { type: "string", nullable: true },
+                    motivo_consulta: { type: "string", nullable: true },
+                    usuario: {
+                      type: "object",
+                      nullable: true,
+                      properties: {
+                        id: { type: "string", format: "uuid" },
+                        nombre: { type: "string", nullable: true },
+                        apellido: { type: "string", nullable: true },
+                        especialidad: { type: "string", nullable: true },
+                      },
+                    },
+                    sede: {
+                      type: "object",
+                      nullable: true,
+                      properties: {
+                        id: { type: "string", format: "uuid" },
+                        nombre: { type: "string" },
+                      },
+                    },
+                  },
+                },
               },
               planes_activos: {
                 type: "array",
-                items: { type: "object", additionalProperties: true },
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", format: "uuid" },
+                    nombre: { type: "string" },
+                    estado: { type: "string", nullable: true },
+                    fecha_inicio: { type: "string", nullable: true },
+                    fecha_fin_estimada: { type: "string", nullable: true },
+                  },
+                },
               },
             },
           },
