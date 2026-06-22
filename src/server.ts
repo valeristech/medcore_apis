@@ -9,9 +9,10 @@ const startServer = async () => {
   try {
     const app = await buildApp(env);
 
-    await app.listen({ port: env.PORT, host: '0.0.0.0' });
-
+    // Registrar scheduler ANTES de listen() para poder agregar hooks
     startRecordatorioScheduler(app, env);
+
+    await app.listen({ port: env.PORT, host: '0.0.0.0' });
 
     app.log.info(`Servidor escuchando en puerto ${env.PORT} (${env.NODE_ENV})`);
   } catch (err) {
