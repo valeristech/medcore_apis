@@ -8,15 +8,7 @@ import {
 } from './guatemala-ine.seed-data.js';
 import { TIPOS_CITA_SEED } from './tipo-cita.seed-data.js';
 import { PLANTILLAS_RECORDATORIO_SEED } from './plantilla-recordatorio.seed-data.js';
-
-/**
- * Opcional en `.env` (UUIDs reales de tu BD) para sembrar `regla_disponibilidad` demo:
- *   SEED_CONSULTORIO_ID=<uuid consultorio>
- *   SEED_MEDICO_USUARIO_ID=<uuid usuario médico>
- * Si alguna falta, se omite ese bloque sin error.
- */
-const SEED_CONSULTORIO_ID = process.env.SEED_CONSULTORIO_ID?.trim() ?? '';
-const SEED_MEDICO_USUARIO_ID = process.env.SEED_MEDICO_USUARIO_ID?.trim() ?? '';
+import { seedDemoFlow } from './seed-demo-flow.js';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -298,6 +290,8 @@ const SEED = {
       agenda: ['*'],
       pacientes: ['*'],
       catalogos_geo: ['*'],
+      hce: ['*'],
+      seguimiento: ['*'],
     },
   },
   usuario: {
@@ -383,13 +377,8 @@ async function main() {
   await seedCatalogoTipoCita(org.id);
   await seedPlantillasRecordatorio(org.id);
 
-  if (SEED_CONSULTORIO_ID && SEED_MEDICO_USUARIO_ID) {
-    await seedReglasDisponibilidadDemo(SEED_CONSULTORIO_ID, SEED_MEDICO_USUARIO_ID);
-  } else {
-    console.log(
-      'Seed disponibilidad: omitido (define SEED_CONSULTORIO_ID y SEED_MEDICO_USUARIO_ID en .env para sembrar reglas).',
-    );
-  }
+  const demo = await seedDemoFlow(org.id, password_hash);
+  await seedReglasDisponibilidadDemo(demo.consultorioId, demo.medicoUsuarioId);
 }
 
 main()
