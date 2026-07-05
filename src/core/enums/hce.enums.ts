@@ -1,3 +1,10 @@
+export enum TipoDiagnostico {
+  Principal = 'principal',
+  Secundario = 'secundario',
+  Diferencial = 'diferencial',
+}
+export const TIPO_DIAGNOSTICO_VALUES = Object.values(TipoDiagnostico) as [string, ...string[]];
+
 export enum EstadoEncuentro {
   Abierto = 'abierto',
   Cerrado = 'cerrado',

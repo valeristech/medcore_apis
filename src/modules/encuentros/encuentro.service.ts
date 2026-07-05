@@ -3,7 +3,7 @@ import { HttpError } from '../../core/errors.js';
 import { serializeDates } from '../../core/utils/dates.js';
 import { cleanStr } from '../../core/utils/strings.js';
 import { EstadoEncuentro } from '../../core/enums/hce.enums.js';
-import type { IniciarEncuentroInput } from './encuentro.schemas.js';
+import type { IniciarEncuentroInput, CrearNotaInput, ActualizarNotaInput } from './encuentro.schemas.js';
 
 /** Estados de cita desde los que se puede iniciar una consulta. */
 const CITA_ESTADOS_INICIABLES = ['programada', 'confirmada'] as const;
@@ -200,6 +200,160 @@ export class HceService {
         estudios_pendientes: estudiosPendientes,
       },
     };
+  }
+
+  // ─── UC-HCE-002 — Nota clínica ──────────────────────────────────────────────
+
+  /** Carga la nota con sus diagnósticos activos. */
+  private async getNotaConDiagnosticos(notaId: string) {
+    return prisma.nota_clinica.findFirst({
+      where: { id: notaId, deleted: false },
+      include: {
+        diagnostico: {
+          where: { deleted: false },
+          orderBy: { created_at: 'asc' },
+        },
+      },
+    });
+  }
+
+  async crearNota(encuentroId: string, tenantOrgId: string, input: CrearNotaInput) {
+    const encuentro = await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    if (encuentro.estado !== EstadoEncuentro.Abierto) {
+      throw new HttpError(
+        409,
+        'ENCUENTRO_NO_ABIERTO',
+        `No se puede escribir la nota: el encuentro está en estado "${encuentro.estado}".`,
+      );
+    }
+
+    // Solo se permite una nota por encuentro
+    const notaExistente = await prisma.nota_clinica.findFirst({
+      where: { encuentro_id: encuentroId, deleted: false },
+      select: { id: true },
+    });
+    if (notaExistente) {
+      throw new HttpError(
+        409,
+        'NOTA_YA_EXISTE',
+        'Ya existe una nota clínica para este encuentro. Use PATCH para actualizarla.',
+      );
+    }
+
+    const nota = await prisma.$transaction(async (tx) => {
+      const nuevaNota = await tx.nota_clinica.create({
+        data: {
+          encuentro_id: encuentroId,
+          motivo_consulta: cleanStr(input.motivo_consulta) ?? null,
+          enfermedad_actual: cleanStr(input.enfermedad_actual) ?? null,
+          antecedentes: cleanStr(input.antecedentes) ?? null,
+          examen_fisico: cleanStr(input.examen_fisico) ?? null,
+          impresion_diagnostica: cleanStr(input.impresion_diagnostica) ?? null,
+          plan_tratamiento: cleanStr(input.plan_tratamiento) ?? null,
+          estudios_solicitados_texto: cleanStr(input.estudios_solicitados_texto) ?? null,
+          recomendaciones: cleanStr(input.recomendaciones) ?? null,
+          datos_adicionales: (input.datos_adicionales ?? {}) as unknown as never,
+          deleted: false,
+        },
+      });
+
+      if (input.diagnosticos?.length) {
+        await tx.diagnostico.createMany({
+          data: input.diagnosticos.map((d) => ({
+            nota_clinica_id: nuevaNota.id,
+            codigo_icd10: d.codigo_icd10,
+            descripcion: d.descripcion,
+            tipo: d.tipo,
+            notas: cleanStr(d.notas) ?? null,
+            deleted: false,
+          })),
+        });
+      }
+
+      return nuevaNota;
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return serializeDates((await this.getNotaConDiagnosticos(nota.id))!);
+  }
+
+  async actualizarNota(encuentroId: string, tenantOrgId: string, input: ActualizarNotaInput) {
+    const encuentro = await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    if (encuentro.estado !== EstadoEncuentro.Abierto) {
+      throw new HttpError(
+        409,
+        'ENCUENTRO_NO_ABIERTO',
+        `No se puede editar la nota: el encuentro está en estado "${encuentro.estado}".`,
+      );
+    }
+
+    const notaExistente = await prisma.nota_clinica.findFirst({
+      where: { encuentro_id: encuentroId, deleted: false },
+      select: { id: true },
+    });
+    if (!notaExistente) {
+      throw new HttpError(
+        404,
+        'NOTA_NOT_FOUND',
+        'No existe nota clínica para este encuentro. Use POST para crearla.',
+      );
+    }
+
+    const notaId = notaExistente.id;
+
+    // Construir objeto de actualización solo con campos presentes en el input
+    const updateData: Record<string, unknown> = { updated_at: new Date() };
+    if (input.motivo_consulta !== undefined)
+      updateData['motivo_consulta'] = cleanStr(input.motivo_consulta) ?? null;
+    if (input.enfermedad_actual !== undefined)
+      updateData['enfermedad_actual'] = cleanStr(input.enfermedad_actual) ?? null;
+    if (input.antecedentes !== undefined)
+      updateData['antecedentes'] = cleanStr(input.antecedentes) ?? null;
+    if (input.examen_fisico !== undefined)
+      updateData['examen_fisico'] = cleanStr(input.examen_fisico) ?? null;
+    if (input.impresion_diagnostica !== undefined)
+      updateData['impresion_diagnostica'] = cleanStr(input.impresion_diagnostica) ?? null;
+    if (input.plan_tratamiento !== undefined)
+      updateData['plan_tratamiento'] = cleanStr(input.plan_tratamiento) ?? null;
+    if (input.estudios_solicitados_texto !== undefined)
+      updateData['estudios_solicitados_texto'] = cleanStr(input.estudios_solicitados_texto) ?? null;
+    if (input.recomendaciones !== undefined)
+      updateData['recomendaciones'] = cleanStr(input.recomendaciones) ?? null;
+    if (input.datos_adicionales !== undefined)
+      updateData['datos_adicionales'] = input.datos_adicionales;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.nota_clinica.update({
+        where: { id: notaId },
+        data: updateData,
+      });
+
+      // Si se envían diagnósticos: reemplazar todos (soft delete + recrear)
+      if (input.diagnosticos !== undefined) {
+        await tx.diagnostico.updateMany({
+          where: { nota_clinica_id: notaId, deleted: false },
+          data: { deleted: true, deleted_at: new Date() },
+        });
+
+        if (input.diagnosticos.length > 0) {
+          await tx.diagnostico.createMany({
+            data: input.diagnosticos.map((d) => ({
+              nota_clinica_id: notaId,
+              codigo_icd10: d.codigo_icd10,
+              descripcion: d.descripcion,
+              tipo: d.tipo,
+              notas: cleanStr(d.notas) ?? null,
+              deleted: false,
+            })),
+          });
+        }
+      }
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return serializeDates((await this.getNotaConDiagnosticos(notaId))!);
   }
 
   // ─── Helper para audit (leer estado actual antes de mutaciones) ─────────────
