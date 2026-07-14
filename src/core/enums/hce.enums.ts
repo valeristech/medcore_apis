@@ -1,3 +1,11 @@
+export enum EstadoPrescripcion {
+  Activa = 'activa',
+  Suspendida = 'suspendida',
+  Cumplida = 'cumplida',
+  Cancelada = 'cancelada',
+}
+export const ESTADO_PRESCRIPCION_VALUES = Object.values(EstadoPrescripcion) as [string, ...string[]];
+
 export enum TipoDiagnostico {
   Principal = 'principal',
   Secundario = 'secundario',

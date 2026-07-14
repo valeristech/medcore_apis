@@ -2,8 +2,9 @@ import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
 import { serializeDates } from '../../core/utils/dates.js';
 import { cleanStr } from '../../core/utils/strings.js';
-import { EstadoEncuentro } from '../../core/enums/hce.enums.js';
+import { EstadoEncuentro, EstadoPrescripcion } from '../../core/enums/hce.enums.js';
 import type { IniciarEncuentroInput, CrearNotaInput, ActualizarNotaInput } from './encuentro.schemas.js';
+import type { CrearPrescripcionInput, ActualizarPrescripcionInput } from './prescripcion.schemas.js';
 
 /** Estados de cita desde los que se puede iniciar una consulta. */
 const CITA_ESTADOS_INICIABLES = ['programada', 'confirmada'] as const;
@@ -354,6 +355,199 @@ export class HceService {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return serializeDates((await this.getNotaConDiagnosticos(notaId))!);
+  }
+
+  // ─── UC-HCE-003 — Prescripciones ────────────────────────────────────────────
+
+  async crearPrescripcion(
+    encuentroId: string,
+    tenantOrgId: string,
+    input: CrearPrescripcionInput,
+  ) {
+    const encuentro = await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    if (encuentro.estado !== EstadoEncuentro.Abierto) {
+      throw new HttpError(
+        409,
+        'ENCUENTRO_NO_ABIERTO',
+        `No se puede prescribir: el encuentro está en estado "${encuentro.estado}".`,
+      );
+    }
+
+    // Validar producto si viene en el input
+    let stockInfo: { cantidad: number; bodega: string | null } | null = null;
+    if (input.producto_id) {
+      const producto = await prisma.producto.findFirst({
+        where: {
+          id: input.producto_id,
+          organizacion_id: tenantOrgId,
+          deleted: false,
+          activo: true,
+        },
+        select: { id: true },
+      });
+      if (!producto) {
+        throw new HttpError(404, 'PRODUCTO_NOT_FOUND', 'Producto no encontrado o inactivo.');
+      }
+
+      // Consultar stock disponible en la sede del encuentro
+      const stock = await prisma.stock.findFirst({
+        where: {
+          producto_id: input.producto_id,
+          deleted: false,
+          bodegas: { sede_id: encuentro.sede_id, deleted: false },
+        },
+        select: {
+          cantidad: true,
+          bodegas: { select: { nombre: true } },
+        },
+        orderBy: { cantidad: 'desc' },
+      });
+
+      stockInfo = stock
+        ? { cantidad: Number(stock.cantidad), bodega: stock.bodegas?.nombre ?? null }
+        : { cantidad: 0, bodega: null };
+    }
+
+    // Cruzar principio_activo contra alergias del paciente
+    const alertasAlergia: {
+      alergia_id: string;
+      sustancia: string;
+      severidad: string;
+      tipo_reaccion: string | null;
+    }[] = [];
+
+    if (input.principio_activo) {
+      const principioLower = input.principio_activo.toLowerCase();
+      const alergias = await prisma.alergia.findMany({
+        where: { paciente_id: encuentro.paciente_id, deleted: false, activo: true },
+        select: { id: true, sustancia: true, severidad: true, tipo_reaccion: true },
+      });
+
+      for (const alergia of alergias) {
+        const sustanciaLower = alergia.sustancia.toLowerCase();
+        if (principioLower.includes(sustanciaLower) || sustanciaLower.includes(principioLower)) {
+          alertasAlergia.push({
+            alergia_id: alergia.id,
+            sustancia: alergia.sustancia,
+            severidad: alergia.severidad,
+            tipo_reaccion: alergia.tipo_reaccion,
+          });
+        }
+      }
+    }
+
+    // Crear prescripción
+    const prescripcion = await prisma.prescripcion.create({
+      data: {
+        encuentro_id: encuentroId,
+        producto_id: input.producto_id ?? null,
+        medicamento: input.medicamento,
+        principio_activo: cleanStr(input.principio_activo) ?? null,
+        dosis: input.dosis,
+        via: cleanStr(input.via) ?? null,
+        frecuencia: input.frecuencia,
+        duracion: cleanStr(input.duracion) ?? null,
+        cantidad: input.cantidad ?? null,
+        indicaciones: cleanStr(input.indicaciones) ?? null,
+        estado: EstadoPrescripcion.Activa,
+        deleted: false,
+      },
+    });
+
+    return {
+      prescripcion: serializeDates(prescripcion),
+      alertas_alergia: alertasAlergia,
+      stock: stockInfo,
+    };
+  }
+
+  /** Carga la prescripción verificando que pertenece al tenant vía el encuentro. */
+  private async getPrescripcionOrFail(prescripcionId: string, tenantOrgId: string) {
+    const rx = await prisma.prescripcion.findFirst({
+      where: {
+        id: prescripcionId,
+        deleted: false,
+        encuentro: {
+          deleted: false,
+          sede: { organizacion_id: tenantOrgId, deleted: false },
+        },
+      },
+      include: { encuentro: { select: { estado: true } } },
+    });
+    if (!rx) {
+      throw new HttpError(404, 'PRESCRIPCION_NOT_FOUND', 'Prescripción no encontrada.');
+    }
+    return rx;
+  }
+
+  /** Versión pública del guard para uso en controllers (audit datosAntes). */
+  async getPrescripcionPublic(prescripcionId: string, tenantOrgId: string) {
+    return this.getPrescripcionOrFail(prescripcionId, tenantOrgId);
+  }
+
+  async actualizarPrescripcion(
+    prescripcionId: string,
+    tenantOrgId: string,
+    input: ActualizarPrescripcionInput,
+  ) {
+    const rx = await this.getPrescripcionOrFail(prescripcionId, tenantOrgId);
+
+    if (rx.encuentro.estado !== EstadoEncuentro.Abierto) {
+      throw new HttpError(
+        409,
+        'ENCUENTRO_NO_ABIERTO',
+        `No se puede editar la prescripción: el encuentro está en estado "${rx.encuentro.estado}".`,
+      );
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (input.medicamento !== undefined) updateData['medicamento'] = input.medicamento;
+    if (input.principio_activo !== undefined)
+      updateData['principio_activo'] = cleanStr(input.principio_activo) ?? null;
+    if (input.dosis !== undefined) updateData['dosis'] = input.dosis;
+    if (input.via !== undefined) updateData['via'] = cleanStr(input.via) ?? null;
+    if (input.frecuencia !== undefined) updateData['frecuencia'] = input.frecuencia;
+    if (input.duracion !== undefined) updateData['duracion'] = cleanStr(input.duracion) ?? null;
+    if (input.cantidad !== undefined) updateData['cantidad'] = input.cantidad;
+    if (input.indicaciones !== undefined)
+      updateData['indicaciones'] = cleanStr(input.indicaciones) ?? null;
+    if (input.estado !== undefined) updateData['estado'] = input.estado;
+
+    const updated = await prisma.prescripcion.update({
+      where: { id: prescripcionId },
+      data: updateData,
+    });
+
+    return serializeDates(updated);
+  }
+
+  async eliminarPrescripcion(prescripcionId: string, tenantOrgId: string) {
+    const rx = await this.getPrescripcionOrFail(prescripcionId, tenantOrgId);
+
+    if (rx.encuentro.estado !== EstadoEncuentro.Abierto) {
+      throw new HttpError(
+        409,
+        'ENCUENTRO_NO_ABIERTO',
+        `No se puede eliminar la prescripción: el encuentro está en estado "${rx.encuentro.estado}".`,
+      );
+    }
+
+    await prisma.prescripcion.update({
+      where: { id: prescripcionId },
+      data: { deleted: true, deleted_at: new Date() },
+    });
+  }
+
+  async listarPrescripciones(encuentroId: string, tenantOrgId: string) {
+    await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    const items = await prisma.prescripcion.findMany({
+      where: { encuentro_id: encuentroId, deleted: false },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return items.map((p) => serializeDates(p));
   }
 
   // ─── Helper para audit (leer estado actual antes de mutaciones) ─────────────
