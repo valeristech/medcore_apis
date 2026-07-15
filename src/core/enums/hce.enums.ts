@@ -27,3 +27,19 @@ export enum TipoEncuentro {
   Interconsulta = 'interconsulta',
 }
 export const TIPO_ENCUENTRO_VALUES = Object.values(TipoEncuentro) as [string, ...string[]];
+
+// UC-HCE-004 — Solicitud de estudios
+export enum TipoEstudio {
+  Laboratorio = 'laboratorio',
+  Imagen = 'imagen',
+  Patologia = 'patologia',
+  Otro = 'otro',
+}
+export const TIPO_ESTUDIO_VALUES = Object.values(TipoEstudio) as [string, ...string[]];
+
+export enum EstadoEstudio {
+  Solicitado = 'solicitado',
+  ResultadoCargado = 'resultado_cargado',
+  Informado = 'informado',
+}
+export const ESTADO_ESTUDIO_VALUES = Object.values(EstadoEstudio) as [string, ...string[]];

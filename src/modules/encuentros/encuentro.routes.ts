@@ -10,6 +10,8 @@ import {
   actualizarPrescripcionSchema,
   eliminarPrescripcionSchema,
 } from './prescripcion.schemas.js';
+import { estudioController } from './estudio.controller.js';
+import { crearEstudioSchema, listarEstudiosSchema, actualizarEstudioSchema } from './estudio.schemas.js';
 
 const pHceLeer = requirePermission('hce', 'leer');
 const pHceCrear = requirePermission('hce', 'crear');
@@ -63,5 +65,26 @@ export const encuentroRoutes: FastifyPluginAsync = async (app) => {
     '/prescripciones/:id',
     { ...eliminarPrescripcionSchema, preHandler: [requireAuth, pHceEditar] },
     prescripcionController.eliminarPrescripcion,
+  );
+
+  // UC-HCE-004 — Solicitar estudio
+  app.post(
+    '/encuentros/:id/estudios',
+    { ...crearEstudioSchema, preHandler: [requireAuth, pHceCrear] },
+    estudioController.crearEstudio,
+  );
+
+  // UC-HCE-004 — Listar estudios del encuentro
+  app.get(
+    '/encuentros/:id/estudios',
+    { ...listarEstudiosSchema, preHandler: [requireAuth, pHceLeer] },
+    estudioController.listarEstudios,
+  );
+
+  // UC-HCE-004 — Actualizar estudio (registrar resultado / cambiar estado)
+  app.patch(
+    '/estudios/:id',
+    { ...actualizarEstudioSchema, preHandler: [requireAuth, pHceEditar] },
+    estudioController.actualizarEstudio,
   );
 };

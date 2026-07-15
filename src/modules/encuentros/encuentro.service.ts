@@ -2,9 +2,10 @@ import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
 import { serializeDates } from '../../core/utils/dates.js';
 import { cleanStr } from '../../core/utils/strings.js';
-import { EstadoEncuentro, EstadoPrescripcion } from '../../core/enums/hce.enums.js';
+import { EstadoEncuentro, EstadoPrescripcion, EstadoEstudio } from '../../core/enums/hce.enums.js';
 import type { IniciarEncuentroInput, CrearNotaInput, ActualizarNotaInput } from './encuentro.schemas.js';
 import type { CrearPrescripcionInput, ActualizarPrescripcionInput } from './prescripcion.schemas.js';
+import type { CrearEstudioInput, ActualizarEstudioInput } from './estudio.schemas.js';
 
 /** Estados de cita desde los que se puede iniciar una consulta. */
 const CITA_ESTADOS_INICIABLES = ['programada', 'confirmada'] as const;
@@ -548,6 +549,102 @@ export class HceService {
     });
 
     return items.map((p) => serializeDates(p));
+  }
+
+  // ─── UC-HCE-004 — Estudios ──────────────────────────────────────────────────
+
+  /** serializeDates no cubre fecha_resultado (propio de estudio_solicitado). */
+  private serializeEstudio<T extends Record<string, unknown>>(row: T): T {
+    const out = serializeDates(row) as T & Record<string, unknown>;
+    const o = out as Record<string, unknown>;
+    const fr = o['fecha_resultado'];
+    if (fr instanceof Date) o['fecha_resultado'] = fr.toISOString();
+    return out;
+  }
+
+  async crearEstudio(encuentroId: string, tenantOrgId: string, input: CrearEstudioInput) {
+    const encuentro = await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    if (encuentro.estado !== EstadoEncuentro.Abierto) {
+      throw new HttpError(
+        409,
+        'ENCUENTRO_NO_ABIERTO',
+        `No se puede solicitar el estudio: el encuentro está en estado "${encuentro.estado}".`,
+      );
+    }
+
+    const estudio = await prisma.estudio_solicitado.create({
+      data: {
+        encuentro_id: encuentroId,
+        tipo: input.tipo,
+        nombre: input.nombre,
+        descripcion: cleanStr(input.descripcion) ?? null,
+        urgente: input.urgente ?? false,
+        estado: EstadoEstudio.Solicitado,
+        deleted: false,
+      },
+    });
+
+    return this.serializeEstudio(estudio);
+  }
+
+  async listarEstudios(encuentroId: string, tenantOrgId: string) {
+    await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    const items = await prisma.estudio_solicitado.findMany({
+      where: { encuentro_id: encuentroId, deleted: false },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return items.map((e) => this.serializeEstudio(e));
+  }
+
+  /** Carga el estudio verificando que pertenece al tenant vía el encuentro. */
+  private async getEstudioOrFail(estudioId: string, tenantOrgId: string) {
+    const row = await prisma.estudio_solicitado.findFirst({
+      where: {
+        id: estudioId,
+        deleted: false,
+        encuentro: { deleted: false, sede: { organizacion_id: tenantOrgId, deleted: false } },
+      },
+    });
+    if (!row) {
+      throw new HttpError(404, 'ESTUDIO_NOT_FOUND', 'Estudio no encontrado.');
+    }
+    return row;
+  }
+
+  /** Versión pública del guard para uso en controllers (audit datosAntes). */
+  async getEstudioPublic(estudioId: string, tenantOrgId: string) {
+    return this.getEstudioOrFail(estudioId, tenantOrgId);
+  }
+
+  /**
+   * A diferencia de nota clínica y prescripciones, actualizar un estudio NO exige
+   * que el encuentro esté "abierto": el resultado de laboratorio/imagen suele llegar
+   * días después, cuando el encuentro ya está cerrado o firmado. Bloquearlo aquí
+   * dejaría el estudio permanentemente atascado en "solicitado".
+   */
+  async actualizarEstudio(estudioId: string, tenantOrgId: string, input: ActualizarEstudioInput) {
+    await this.getEstudioOrFail(estudioId, tenantOrgId);
+
+    const updateData: Record<string, unknown> = { updated_at: new Date() };
+    if (input.tipo !== undefined) updateData['tipo'] = input.tipo;
+    if (input.nombre !== undefined) updateData['nombre'] = input.nombre;
+    if (input.descripcion !== undefined) updateData['descripcion'] = cleanStr(input.descripcion) ?? null;
+    if (input.urgente !== undefined) updateData['urgente'] = input.urgente;
+    if (input.resultado_texto !== undefined) {
+      updateData['resultado_texto'] = cleanStr(input.resultado_texto) ?? null;
+      updateData['fecha_resultado'] = new Date();
+    }
+    if (input.estado !== undefined) updateData['estado'] = input.estado;
+
+    const updated = await prisma.estudio_solicitado.update({
+      where: { id: estudioId },
+      data: updateData,
+    });
+
+    return this.serializeEstudio(updated);
   }
 
   // ─── Helper para audit (leer estado actual antes de mutaciones) ─────────────
