@@ -43,3 +43,11 @@ export enum EstadoEstudio {
   Informado = 'informado',
 }
 export const ESTADO_ESTUDIO_VALUES = Object.values(EstadoEstudio) as [string, ...string[]];
+
+// UC-HCE-005 — Evolución
+export enum TipoEvolucion {
+  Medica = 'medica',
+  Enfermeria = 'enfermeria',
+  Otro = 'otro',
+}
+export const TIPO_EVOLUCION_VALUES = Object.values(TipoEvolucion) as [string, ...string[]];

@@ -2,10 +2,11 @@ import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
 import { serializeDates } from '../../core/utils/dates.js';
 import { cleanStr } from '../../core/utils/strings.js';
-import { EstadoEncuentro, EstadoPrescripcion, EstadoEstudio } from '../../core/enums/hce.enums.js';
+import { EstadoEncuentro, EstadoPrescripcion, EstadoEstudio, TipoEvolucion } from '../../core/enums/hce.enums.js';
 import type { IniciarEncuentroInput, CrearNotaInput, ActualizarNotaInput } from './encuentro.schemas.js';
 import type { CrearPrescripcionInput, ActualizarPrescripcionInput } from './prescripcion.schemas.js';
 import type { CrearEstudioInput, ActualizarEstudioInput } from './estudio.schemas.js';
+import type { CrearEvolucionInput } from './evolucion.schemas.js';
 
 /** Estados de cita desde los que se puede iniciar una consulta. */
 const CITA_ESTADOS_INICIABLES = ['programada', 'confirmada'] as const;
@@ -645,6 +646,58 @@ export class HceService {
     });
 
     return this.serializeEstudio(updated);
+  }
+
+  // ─── UC-HCE-005 — Evolución ─────────────────────────────────────────────────
+
+  /** serializeDates no cubre `fecha` (propio de evolucion, distinto de created_at). */
+  private serializeEvolucion<T extends Record<string, unknown>>(row: T): T {
+    const out = serializeDates(row) as T & Record<string, unknown>;
+    const o = out as Record<string, unknown>;
+    const f = o['fecha'];
+    if (f instanceof Date) o['fecha'] = f.toISOString();
+    return out;
+  }
+
+  async crearEvolucion(
+    encuentroId: string,
+    tenantOrgId: string,
+    usuarioId: string,
+    input: CrearEvolucionInput,
+  ) {
+    const encuentro = await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    if (encuentro.estado !== EstadoEncuentro.Abierto) {
+      throw new HttpError(
+        409,
+        'ENCUENTRO_NO_ABIERTO',
+        `No se puede agregar evolución: el encuentro está en estado "${encuentro.estado}".`,
+      );
+    }
+
+    const evolucion = await prisma.evolucion.create({
+      data: {
+        encuentro_id: encuentroId,
+        usuario_id: usuarioId,
+        nota: input.nota,
+        tipo: input.tipo ?? TipoEvolucion.Medica,
+        deleted: false,
+      },
+    });
+
+    return this.serializeEvolucion(evolucion);
+  }
+
+  async listarEvoluciones(encuentroId: string, tenantOrgId: string) {
+    await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    const items = await prisma.evolucion.findMany({
+      where: { encuentro_id: encuentroId, deleted: false },
+      // Orden cronológico ascendente: es una narrativa, no un dashboard de items activos.
+      orderBy: { fecha: 'asc' },
+    });
+
+    return items.map((e) => this.serializeEvolucion(e));
   }
 
   // ─── Helper para audit (leer estado actual antes de mutaciones) ─────────────

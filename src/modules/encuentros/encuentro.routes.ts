@@ -12,6 +12,8 @@ import {
 } from './prescripcion.schemas.js';
 import { estudioController } from './estudio.controller.js';
 import { crearEstudioSchema, listarEstudiosSchema, actualizarEstudioSchema } from './estudio.schemas.js';
+import { evolucionController } from './evolucion.controller.js';
+import { crearEvolucionSchema, listarEvolucionesSchema } from './evolucion.schemas.js';
 
 const pHceLeer = requirePermission('hce', 'leer');
 const pHceCrear = requirePermission('hce', 'crear');
@@ -86,5 +88,19 @@ export const encuentroRoutes: FastifyPluginAsync = async (app) => {
     '/estudios/:id',
     { ...actualizarEstudioSchema, preHandler: [requireAuth, pHceEditar] },
     estudioController.actualizarEstudio,
+  );
+
+  // UC-HCE-005 — Agregar evolución
+  app.post(
+    '/encuentros/:id/evoluciones',
+    { ...crearEvolucionSchema, preHandler: [requireAuth, pHceCrear] },
+    evolucionController.crearEvolucion,
+  );
+
+  // UC-HCE-005 — Listar evoluciones del encuentro
+  app.get(
+    '/encuentros/:id/evoluciones',
+    { ...listarEvolucionesSchema, preHandler: [requireAuth, pHceLeer] },
+    evolucionController.listarEvoluciones,
   );
 };
