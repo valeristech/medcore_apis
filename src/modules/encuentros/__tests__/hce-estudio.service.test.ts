@@ -12,7 +12,10 @@ const { mockPrisma } = vi.hoisted(() => {
 });
 
 vi.mock('../../../config/prisma.js', () => ({ default: mockPrisma }));
-vi.mock('../../../core/utils/dates.js', () => ({ serializeDates: (obj: unknown) => obj }));
+vi.mock('../../../core/utils/dates.js', () => ({
+  serializeDates: (obj: unknown) => obj,
+  serializeExtraFecha: (obj: unknown) => obj,
+}));
 
 // ── Import bajo test ──────────────────────────────────────────────────────────
 

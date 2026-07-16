@@ -20,3 +20,19 @@ export function serializeDates<T extends Record<string, unknown>>(row: T): T {
 
   return out as T;
 }
+
+/**
+ * Serializa una columna de fecha con nombre distinto a fecha_nacimiento/created_at/updated_at
+ * (ej. `fecha`, `fecha_resultado`, `fecha_firma`). Pensado para encadenar con serializeDates():
+ *
+ *   serializeExtraFecha(serializeDates(row), 'fecha_resultado')
+ */
+export function serializeExtraFecha<T extends Record<string, unknown>>(row: T, campo: string): T {
+  const out = { ...row } as T & Record<string, unknown>;
+  const o = out as Record<string, unknown>;
+
+  const v = o[campo];
+  if (v instanceof Date) o[campo] = v.toISOString();
+
+  return out as T;
+}

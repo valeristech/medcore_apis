@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
-import { serializeDates } from '../../core/utils/dates.js';
+import { serializeDates, serializeExtraFecha } from '../../core/utils/dates.js';
 import { cleanStr } from '../../core/utils/strings.js';
 import {
   EstadoEncuentro,
@@ -561,20 +561,8 @@ export class HceService {
 
   // ─── UC-HCE-004 — Estudios ──────────────────────────────────────────────────
 
-  /**
-   * serializeDates solo convierte fecha_nacimiento/created_at/updated_at.
-   * Este helper cubre columnas de fecha con otro nombre (fecha_resultado, fecha, fecha_firma, ...).
-   */
-  private serializeExtraFecha<T extends Record<string, unknown>>(row: T, campo: string): T {
-    const out = serializeDates(row) as T & Record<string, unknown>;
-    const o = out as Record<string, unknown>;
-    const v = o[campo];
-    if (v instanceof Date) o[campo] = v.toISOString();
-    return out;
-  }
-
   private serializeEstudio<T extends Record<string, unknown>>(row: T): T {
-    return this.serializeExtraFecha(row, 'fecha_resultado');
+    return serializeExtraFecha(serializeDates(row), 'fecha_resultado');
   }
 
   async crearEstudio(encuentroId: string, tenantOrgId: string, input: CrearEstudioInput) {
@@ -665,7 +653,7 @@ export class HceService {
   // ─── UC-HCE-005 — Evolución ─────────────────────────────────────────────────
 
   private serializeEvolucion<T extends Record<string, unknown>>(row: T): T {
-    return this.serializeExtraFecha(row, 'fecha');
+    return serializeExtraFecha(serializeDates(row), 'fecha');
   }
 
   async crearEvolucion(
@@ -712,7 +700,7 @@ export class HceService {
   // ─── UC-HCE-006 — Firma y cierre del encuentro ──────────────────────────────
 
   private serializeFirma<T extends Record<string, unknown>>(row: T): T {
-    return this.serializeExtraFecha(row, 'fecha_firma');
+    return serializeExtraFecha(serializeDates(row), 'fecha_firma');
   }
 
   /** Contenido canónico que se hashea al firmar: nota + diagnósticos + prescripciones vigentes. */
@@ -838,7 +826,7 @@ export class HceService {
 
     return {
       firma: this.serializeFirma(firma),
-      encuentro: this.serializeExtraFecha(encuentroFirmado, 'fecha'),
+      encuentro: serializeExtraFecha(serializeDates(encuentroFirmado), 'fecha'),
     };
   }
 

@@ -6,6 +6,16 @@ import {
   SEVERIDAD_ALERGIA_VALUES,
   SeveridadAlergia,
 } from "../../core/enums/paciente.enums.js";
+import {
+  TIPO_ENCUENTRO_VALUES,
+  ESTADO_ENCUENTRO_VALUES,
+  TIPO_DIAGNOSTICO_VALUES,
+  ESTADO_PRESCRIPCION_VALUES,
+  TIPO_ESTUDIO_VALUES,
+  ESTADO_ESTUDIO_VALUES,
+  TIPO_EVOLUCION_VALUES,
+  TIPO_FIRMA_VALUES,
+} from "../../core/enums/hce.enums.js";
 
 // Re-exportar enums para que los consumers del módulo puedan importarlos desde aquí
 export { Genero, GrupoSanguineo, SeveridadAlergia };
@@ -95,6 +105,12 @@ export type SearchSegurosQuery = {
   page?: number;
   pageSize?: number;
   sortBy?: SeguroSortBy;
+  sortOrder?: "asc" | "desc";
+};
+
+export type HistorialPacienteQuery = {
+  page?: number;
+  pageSize?: number;
   sortOrder?: "asc" | "desc";
 };
 
@@ -436,6 +452,185 @@ export const perfilPacienteSchema = {
                     fecha_fin_estimada: { type: "string", nullable: true },
                   },
                 },
+              },
+            },
+          },
+          meta: { type: "object", properties: metaProperties },
+        },
+      },
+    },
+  },
+} as const;
+
+// ─── Historial clínico (UC-HCE-007) ─────────────────────────────────────────
+
+const autorHistorialShape = {
+  type: "object",
+  nullable: true,
+  properties: {
+    id: { type: "string", format: "uuid" },
+    nombre: { type: "string", nullable: true },
+    apellido: { type: "string", nullable: true },
+  },
+} as const;
+
+const diagnosticoHistorialShape = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    codigo_icd10: { type: "string" },
+    descripcion: { type: "string" },
+    tipo: { type: "string", enum: TIPO_DIAGNOSTICO_VALUES },
+    notas: { type: "string", nullable: true },
+  },
+} as const;
+
+const notaHistorialShape = {
+  type: "object",
+  nullable: true,
+  description: "Nota clínica del encuentro (null si aún no se escribió).",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    motivo_consulta: { type: "string", nullable: true },
+    enfermedad_actual: { type: "string", nullable: true },
+    antecedentes: { type: "string", nullable: true },
+    examen_fisico: { type: "string", nullable: true },
+    impresion_diagnostica: { type: "string", nullable: true },
+    plan_tratamiento: { type: "string", nullable: true },
+    estudios_solicitados_texto: { type: "string", nullable: true },
+    recomendaciones: { type: "string", nullable: true },
+    datos_adicionales: { type: "object", nullable: true },
+    diagnosticos: { type: "array", items: diagnosticoHistorialShape },
+  },
+} as const;
+
+const prescripcionHistorialShape = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    medicamento: { type: "string" },
+    principio_activo: { type: "string", nullable: true },
+    dosis: { type: "string" },
+    via: { type: "string", nullable: true },
+    frecuencia: { type: "string" },
+    duracion: { type: "string", nullable: true },
+    cantidad: { type: "integer", nullable: true },
+    indicaciones: { type: "string", nullable: true },
+    estado: { type: "string", enum: ESTADO_PRESCRIPCION_VALUES },
+    created_at: { type: "string", nullable: true },
+  },
+} as const;
+
+const estudioHistorialShape = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    tipo: { type: "string", enum: TIPO_ESTUDIO_VALUES },
+    nombre: { type: "string" },
+    descripcion: { type: "string", nullable: true },
+    urgente: { type: "boolean", nullable: true },
+    estado: { type: "string", enum: ESTADO_ESTUDIO_VALUES },
+    resultado_texto: { type: "string", nullable: true },
+    fecha_resultado: { type: "string", nullable: true },
+    created_at: { type: "string", nullable: true },
+  },
+} as const;
+
+const evolucionHistorialShape = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    nota: { type: "string" },
+    tipo: { type: "string", enum: TIPO_EVOLUCION_VALUES },
+    fecha: { type: "string", nullable: true },
+    autor: autorHistorialShape,
+  },
+} as const;
+
+const firmaHistorialShape = {
+  type: "object",
+  nullable: true,
+  description: "Firma electrónica del encuentro (null si aún no está firmado).",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    tipo: { type: "string", enum: TIPO_FIRMA_VALUES },
+    hash_documento: { type: "string", nullable: true },
+    fecha_firma: { type: "string", nullable: true },
+    autor: autorHistorialShape,
+  },
+} as const;
+
+const encuentroHistorialShape = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    tipo: { type: "string", enum: TIPO_ENCUENTRO_VALUES },
+    estado: { type: "string", enum: ESTADO_ENCUENTRO_VALUES },
+    motivo_consulta: { type: "string", nullable: true },
+    fecha: { type: "string", nullable: true },
+    medico: autorHistorialShape,
+    sede: {
+      type: "object",
+      nullable: true,
+      properties: {
+        id: { type: "string", format: "uuid" },
+        nombre: { type: "string" },
+      },
+    },
+    nota: notaHistorialShape,
+    prescripciones: { type: "array", items: prescripcionHistorialShape },
+    estudios: { type: "array", items: estudioHistorialShape },
+    evoluciones: { type: "array", items: evolucionHistorialShape },
+    firma: firmaHistorialShape,
+  },
+} as const;
+
+export const historialPacienteSchema = {
+  schema: {
+    tags: ["Pacientes / Historial"],
+    summary: "Historial clínico completo del paciente (UC-HCE-007)",
+    description:
+      "Agrega por encuentro: nota clínica + diagnósticos, prescripciones, estudios " +
+      "solicitados, evoluciones y firma. Va más allá de las tablas listadas en el caso " +
+      "de uso (encuentro, nota_clinica, diagnostico, prescripcion, estudio_solicitado) " +
+      "para incluir también evolución y firma — omitirlas habría dejado el historial " +
+      "incompleto. Paginado por encuentro (más reciente primero por defecto). " +
+      "Acceso auditado por ser dato clínico sensible.",
+    security: [{ bearerAuth: [] }],
+    params: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string", format: "uuid" } },
+    },
+    querystring: {
+      type: "object",
+      properties: {
+        page: { type: "integer", minimum: 1, default: 1 },
+        pageSize: { type: "integer", minimum: 1, maximum: 50, default: 10 },
+        sortOrder: { type: "string", enum: ["asc", "desc"], default: "desc" },
+      },
+    },
+    response: {
+      200: {
+        type: "object",
+        properties: {
+          success: { type: "boolean" },
+          data: {
+            type: "object",
+            properties: {
+              items: { type: "array", items: encuentroHistorialShape },
+              pagination: {
+                type: "object",
+                properties: {
+                  page: { type: "integer" },
+                  pageSize: { type: "integer" },
+                  total: { type: "integer" },
+                  totalPages: { type: "integer" },
+                },
+              },
+              sort: {
+                type: "object",
+                properties: { sortOrder: { type: "string" } },
               },
             },
           },

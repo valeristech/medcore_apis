@@ -8,6 +8,7 @@ import type {
   CreateAlergiaInput,
   CreatePacienteInput,
   CreateSeguroInput,
+  HistorialPacienteQuery,
   SearchPacientesQuery,
   SearchSegurosQuery,
   UpdateAlergiaInput,
@@ -123,6 +124,29 @@ export const pacienteController = {
     });
 
     return sendOk(reply, request.requestId, perfil);
+  },
+
+  async getHistorial(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = request.params as IdParam;
+    const tenantOrgId = request.user.organizacion_id;
+    const historial = await pacienteService.getHistorial(
+      id,
+      tenantOrgId,
+      request.query as HistorialPacienteQuery,
+    );
+
+    await writeAuditLog({
+      request,
+      organizacionId: tenantOrgId,
+      accion: "leer",
+      recurso: "pacientes/historial",
+      recursoId: id,
+      descripcion: "Historial clínico completo del paciente consultado.",
+      datosAntes: undefined,
+      datosDespues: undefined,
+    });
+
+    return sendOk(reply, request.requestId, historial);
   },
 
   // ── Alergias ────────────────────────────────────────────────────────────────
