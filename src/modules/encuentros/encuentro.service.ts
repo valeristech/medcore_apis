@@ -1,8 +1,15 @@
+import { createHash } from 'node:crypto';
 import prisma from '../../config/prisma.js';
 import { HttpError } from '../../core/errors.js';
 import { serializeDates } from '../../core/utils/dates.js';
 import { cleanStr } from '../../core/utils/strings.js';
-import { EstadoEncuentro, EstadoPrescripcion, EstadoEstudio, TipoEvolucion } from '../../core/enums/hce.enums.js';
+import {
+  EstadoEncuentro,
+  EstadoPrescripcion,
+  EstadoEstudio,
+  TipoEvolucion,
+  TipoFirma,
+} from '../../core/enums/hce.enums.js';
 import type { IniciarEncuentroInput, CrearNotaInput, ActualizarNotaInput } from './encuentro.schemas.js';
 import type { CrearPrescripcionInput, ActualizarPrescripcionInput } from './prescripcion.schemas.js';
 import type { CrearEstudioInput, ActualizarEstudioInput } from './estudio.schemas.js';
@@ -554,13 +561,20 @@ export class HceService {
 
   // ─── UC-HCE-004 — Estudios ──────────────────────────────────────────────────
 
-  /** serializeDates no cubre fecha_resultado (propio de estudio_solicitado). */
-  private serializeEstudio<T extends Record<string, unknown>>(row: T): T {
+  /**
+   * serializeDates solo convierte fecha_nacimiento/created_at/updated_at.
+   * Este helper cubre columnas de fecha con otro nombre (fecha_resultado, fecha, fecha_firma, ...).
+   */
+  private serializeExtraFecha<T extends Record<string, unknown>>(row: T, campo: string): T {
     const out = serializeDates(row) as T & Record<string, unknown>;
     const o = out as Record<string, unknown>;
-    const fr = o['fecha_resultado'];
-    if (fr instanceof Date) o['fecha_resultado'] = fr.toISOString();
+    const v = o[campo];
+    if (v instanceof Date) o[campo] = v.toISOString();
     return out;
+  }
+
+  private serializeEstudio<T extends Record<string, unknown>>(row: T): T {
+    return this.serializeExtraFecha(row, 'fecha_resultado');
   }
 
   async crearEstudio(encuentroId: string, tenantOrgId: string, input: CrearEstudioInput) {
@@ -650,13 +664,8 @@ export class HceService {
 
   // ─── UC-HCE-005 — Evolución ─────────────────────────────────────────────────
 
-  /** serializeDates no cubre `fecha` (propio de evolucion, distinto de created_at). */
   private serializeEvolucion<T extends Record<string, unknown>>(row: T): T {
-    const out = serializeDates(row) as T & Record<string, unknown>;
-    const o = out as Record<string, unknown>;
-    const f = o['fecha'];
-    if (f instanceof Date) o['fecha'] = f.toISOString();
-    return out;
+    return this.serializeExtraFecha(row, 'fecha');
   }
 
   async crearEvolucion(
@@ -698,6 +707,139 @@ export class HceService {
     });
 
     return items.map((e) => this.serializeEvolucion(e));
+  }
+
+  // ─── UC-HCE-006 — Firma y cierre del encuentro ──────────────────────────────
+
+  private serializeFirma<T extends Record<string, unknown>>(row: T): T {
+    return this.serializeExtraFecha(row, 'fecha_firma');
+  }
+
+  /** Contenido canónico que se hashea al firmar: nota + diagnósticos + prescripciones vigentes. */
+  private async buildContenidoFirma(encuentroId: string) {
+    const nota = await prisma.nota_clinica.findFirst({
+      where: { encuentro_id: encuentroId, deleted: false },
+      include: {
+        diagnostico: { where: { deleted: false }, orderBy: { created_at: 'asc' } },
+      },
+    });
+
+    if (!nota) {
+      throw new HttpError(
+        409,
+        'NOTA_REQUERIDA',
+        'No se puede firmar: el encuentro no tiene una nota clínica.',
+      );
+    }
+
+    const prescripciones = await prisma.prescripcion.findMany({
+      where: { encuentro_id: encuentroId, deleted: false },
+      orderBy: { created_at: 'asc' },
+    });
+
+    return {
+      nota: {
+        motivo_consulta: nota.motivo_consulta,
+        enfermedad_actual: nota.enfermedad_actual,
+        antecedentes: nota.antecedentes,
+        examen_fisico: nota.examen_fisico,
+        impresion_diagnostica: nota.impresion_diagnostica,
+        plan_tratamiento: nota.plan_tratamiento,
+        estudios_solicitados_texto: nota.estudios_solicitados_texto,
+        recomendaciones: nota.recomendaciones,
+        datos_adicionales: nota.datos_adicionales,
+      },
+      diagnosticos: nota.diagnostico.map((d) => ({
+        codigo_icd10: d.codigo_icd10,
+        descripcion: d.descripcion,
+        tipo: d.tipo,
+        notas: d.notas,
+      })),
+      prescripciones: prescripciones.map((p) => ({
+        medicamento: p.medicamento,
+        principio_activo: p.principio_activo,
+        dosis: p.dosis,
+        via: p.via,
+        frecuencia: p.frecuencia,
+        duracion: p.duracion,
+        cantidad: p.cantidad,
+        indicaciones: p.indicaciones,
+        estado: p.estado,
+      })),
+    };
+  }
+
+  private hashContenido(contenido: unknown): string {
+    return createHash('sha256').update(JSON.stringify(contenido)).digest('hex');
+  }
+
+  /**
+   * Firma electrónica + cierre del encuentro. Transacción atómica: firma + encuentro
+   * (+ cita si existe). Solo el médico dueño del encuentro puede firmarlo. A partir de
+   * este punto, encuentro.estado="firmado" bloquea nota/prescripciones/evolución
+   * automáticamente vía sus propios guards de "encuentro abierto" — no hace falta
+   * duplicar esa validación acá. Los estudios (UC-HCE-004) siguen editables a propósito.
+   */
+  async firmarEncuentro(
+    encuentroId: string,
+    tenantOrgId: string,
+    medicoId: string,
+    ipOrigen: string | undefined,
+  ) {
+    const encuentro = await this.getEncuentroOrFail(encuentroId, tenantOrgId);
+
+    if (encuentro.usuario_id !== medicoId) {
+      throw new HttpError(403, 'FORBIDDEN', 'Solo el médico dueño del encuentro puede firmarlo.');
+    }
+
+    if (encuentro.estado === EstadoEncuentro.Firmado) {
+      throw new HttpError(409, 'ENCUENTRO_YA_FIRMADO', 'El encuentro ya fue firmado.');
+    }
+    if (encuentro.estado !== EstadoEncuentro.Abierto) {
+      throw new HttpError(
+        409,
+        'ENCUENTRO_NO_ABIERTO',
+        `No se puede firmar: el encuentro está en estado "${encuentro.estado}".`,
+      );
+    }
+
+    // Nota y prescripciones vigentes se leen ANTES de la transacción: son insumo del hash,
+    // no algo que la transacción modifique.
+    const contenido = await this.buildContenidoFirma(encuentroId);
+    const hash = this.hashContenido(contenido);
+
+    const { firma, encuentroFirmado } = await prisma.$transaction(async (tx) => {
+      const firma = await tx.firma.create({
+        data: {
+          encuentro_id: encuentroId,
+          usuario_id: medicoId,
+          tipo: TipoFirma.Electronica,
+          hash_documento: hash,
+          fecha_firma: new Date(),
+          ip_origen: ipOrigen ?? null,
+          deleted: false,
+        },
+      });
+
+      const encuentroFirmado = await tx.encuentro.update({
+        where: { id: encuentroId },
+        data: { estado: EstadoEncuentro.Firmado, updated_at: new Date() },
+      });
+
+      if (encuentro.cita_id) {
+        await tx.cita.update({
+          where: { id: encuentro.cita_id },
+          data: { estado: 'completada', updated_at: new Date() },
+        });
+      }
+
+      return { firma, encuentroFirmado };
+    });
+
+    return {
+      firma: this.serializeFirma(firma),
+      encuentro: this.serializeExtraFecha(encuentroFirmado, 'fecha'),
+    };
   }
 
   // ─── Helper para audit (leer estado actual antes de mutaciones) ─────────────

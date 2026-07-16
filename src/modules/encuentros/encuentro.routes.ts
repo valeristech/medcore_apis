@@ -14,10 +14,13 @@ import { estudioController } from './estudio.controller.js';
 import { crearEstudioSchema, listarEstudiosSchema, actualizarEstudioSchema } from './estudio.schemas.js';
 import { evolucionController } from './evolucion.controller.js';
 import { crearEvolucionSchema, listarEvolucionesSchema } from './evolucion.schemas.js';
+import { firmaController } from './firma.controller.js';
+import { firmarEncuentroSchema } from './firma.schemas.js';
 
 const pHceLeer = requirePermission('hce', 'leer');
 const pHceCrear = requirePermission('hce', 'crear');
 const pHceEditar = requirePermission('hce', 'editar');
+const pHceFirmar = requirePermission('hce', 'firmar');
 
 export const encuentroRoutes: FastifyPluginAsync = async (app) => {
   // UC-HCE-001 — Iniciar consulta (abrir encuentro)
@@ -102,5 +105,12 @@ export const encuentroRoutes: FastifyPluginAsync = async (app) => {
     '/encuentros/:id/evoluciones',
     { ...listarEvolucionesSchema, preHandler: [requireAuth, pHceLeer] },
     evolucionController.listarEvoluciones,
+  );
+
+  // UC-HCE-006 — Firmar y cerrar encuentro
+  app.post(
+    '/encuentros/:id/firmar',
+    { ...firmarEncuentroSchema, preHandler: [requireAuth, pHceFirmar] },
+    firmaController.firmarEncuentro,
   );
 };

@@ -51,3 +51,10 @@ export enum TipoEvolucion {
   Otro = 'otro',
 }
 export const TIPO_EVOLUCION_VALUES = Object.values(TipoEvolucion) as [string, ...string[]];
+
+// UC-HCE-006 — Firma
+export enum TipoFirma {
+  Electronica = 'electronica',
+  DigitalCertificada = 'digital_certificada',
+}
+export const TIPO_FIRMA_VALUES = Object.values(TipoFirma) as [string, ...string[]];
