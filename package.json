@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
@@ -37,9 +39,11 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^25.6.0",
     "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^4.1.9",
     "pino-pretty": "^13.1.3",
     "prisma": "^7.7.0",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   }
 }

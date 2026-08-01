@@ -95,7 +95,87 @@ export async function registerOpenApi(app: FastifyInstance, env: AppEnv) {
         {
           name: 'Pacientes',
           description:
-            'Alta y mantenimiento de pacientes por tenant (`paciente` + `paciente_organizacion`), búsqueda, perfil, alergias y seguros.',
+            'Alta y mantenimiento de pacientes por tenant (`paciente` + `paciente_organizacion`), búsqueda y perfil.',
+        },
+        {
+          name: 'Pacientes / Alergias',
+          description: 'CRUD de `alergia` por paciente (sustancia, severidad, tipo de reacción).',
+        },
+        {
+          name: 'Pacientes / Seguros',
+          description: 'CRUD de `paciente_seguro`: pólizas y vigencia por aseguradora.',
+        },
+        {
+          name: 'Pacientes / Historial',
+          description:
+            'UC-HCE-007: historial clínico paginado del paciente (nota + diagnósticos, prescripciones, estudios, evoluciones y firma por encuentro).',
+        },
+        {
+          name: 'Aseguradoras',
+          description: 'Catálogo global de aseguradoras (compañías de seguros médicos).',
+        },
+        {
+          name: 'Aseguradoras / Convenios',
+          description: 'Convenios por tenant con una aseguradora: precios y servicios cubiertos.',
+        },
+        {
+          name: 'HCE / Encuentros',
+          description:
+            'UC-HCE-001: iniciar consulta (`POST /api/encuentros`) — valida la cita del médico, la pasa a `en_curso` y abre el `encuentro` con el contexto clínico del paciente (alergias, medicación activa, últimos encuentros, estudios pendientes).',
+        },
+        {
+          name: 'HCE / Nota Clínica',
+          description:
+            'UC-HCE-002: crear/actualizar la `nota_clinica` del encuentro y sus diagnósticos ICD-10. Solo con el encuentro `abierto`.',
+        },
+        {
+          name: 'HCE / Prescripciones',
+          description:
+            'UC-HCE-003: prescripciones del encuentro — creación con chequeo de alergias y stock, actualización y baja lógica.',
+        },
+        {
+          name: 'HCE / Estudios',
+          description:
+            'UC-HCE-004: solicitud de estudios del encuentro y registro de resultados (permitido incluso con el encuentro ya firmado).',
+        },
+        {
+          name: 'HCE / Evolución',
+          description: 'UC-HCE-005: notas de evolución del encuentro (solo alta y lectura, orden cronológico).',
+        },
+        {
+          name: 'HCE / Firma',
+          description:
+            'UC-HCE-006: firma y cierre del encuentro — hash del contenido clínico y cierre de la cita asociada.',
+        },
+        {
+          name: 'Seguimiento / Indicaciones',
+          description:
+            'UC-SEG-001: el médico registra desde el `encuentro` que el paciente necesita seguimiento ' +
+            '(`indicacion_seguimiento`, estado `pendiente`) sin agendar la cita todavía. ' +
+            'UC-SEG-002: bandeja de secretaría — listar/filtrar por estado (orden por prioridad y ' +
+            'antigüedad), actualizar gestión (contacto, notas, transición de estado) y cerrar el ciclo ' +
+            'agendando la cita (`cita_generada_id`, estado `agendada`), reutilizando el módulo de citas.',
+        },
+        {
+          name: 'Seguimiento / Planes',
+          description:
+            'UC-SEG-003: planes de seguimiento para pacientes crónicos (diabetes, HTA, prenatal, etc.). ' +
+            'El médico abre el plan en `borrador` (nombre, indicación, diagnóstico/ICD-10, frecuencia); ' +
+            'la secretaría lo completa con `plan_seguimiento_actividad` (tipo, fechas, instrucciones, ' +
+            'preparación) y lo activa (`PUT /:id/estado`). Job diario (`POST /cron/ejecutar`, ' +
+            '`X-Cron-Secret`): genera `indicacion_seguimiento` automáticas cuando se acerca ' +
+            '`fecha_programada` y marca `vencida` toda actividad fuera de plazo.',
+        },
+        {
+          name: 'Seguimiento / Alertas',
+          description:
+            'UC-SEG-004: bandeja de `alerta_preventiva` (generadas por el sistema o manualmente ' +
+            '— p. ej. no-show de citas). Tipos: `control_vencido`, `actividad_pendiente`, ' +
+            '`paciente_sin_contacto`, `plan_abandonado`, `preventivo_anual`, `personalizada`. ' +
+            'Listar/filtrar por `estado` (default `activa`), `visible_para` y `prioridad` ' +
+            '(`GET /alertas`), y gestionar/cerrar (`PATCH /alertas/:id`). Job diario ' +
+            '(`POST /alertas/cron/ejecutar`, `X-Cron-Secret`) genera alertas a partir de ' +
+            'indicaciones y actividades/planes de seguimiento vencidos.',
         },
       ],
       components: {

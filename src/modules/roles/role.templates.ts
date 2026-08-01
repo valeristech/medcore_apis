@@ -29,7 +29,7 @@ export const ROLE_TEMPLATES: Record<RoleTemplateKey, RoleTemplate> = {
     permisos: {
       auth: ['me'],
       agenda: ['leer', 'crear', 'editar', 'cancelar'],
-      hce: ['leer', 'crear', 'editar'],
+      hce: ['leer', 'crear', 'editar', 'firmar'],
       seguimiento: ['leer', 'crear', 'editar'],
       telemedicina: ['leer', 'crear'],
       catalogos_geo: ['leer'],

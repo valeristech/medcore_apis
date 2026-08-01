@@ -20,6 +20,10 @@ export type AppEnv = Readonly<{
   CRON_SECRET: string | undefined;
   /** Si `true`, ejecuta el job de recordatorios cada hora en el mismo proceso. */
   RECORDATORIOS_CRON_ENABLED: boolean;
+  /** Si `true`, ejecuta el job diario de planes de seguimiento (UC-SEG-003) en el mismo proceso. */
+  PLAN_SEGUIMIENTO_CRON_ENABLED: boolean;
+  /** Si `true`, ejecuta el job diario de alertas preventivas (UC-SEG-004) en el mismo proceso. */
+  ALERTA_CRON_ENABLED: boolean;
   /** Webhook opcional para despachar SMS/email/WhatsApp (payload `recordatorio.enviado`). */
   RECORDATORIOS_WEBHOOK_URL: string | undefined;
   RECORDATORIOS_WEBHOOK_SECRET: string | undefined;
@@ -111,6 +115,9 @@ export function loadEnv(): AppEnv {
     process.env.RECORDATORIOS_WEBHOOK_SECRET?.trim() || undefined;
   const recordatoriosCronEnabled =
     process.env.RECORDATORIOS_CRON_ENABLED?.trim().toLowerCase() === 'true';
+  const planSeguimientoCronEnabled =
+    process.env.PLAN_SEGUIMIENTO_CRON_ENABLED?.trim().toLowerCase() === 'true';
+  const alertaCronEnabled = process.env.ALERTA_CRON_ENABLED?.trim().toLowerCase() === 'true';
 
   return Object.freeze({
     NODE_ENV,
@@ -123,6 +130,8 @@ export function loadEnv(): AppEnv {
     API_PUBLIC_URL,
     CRON_SECRET: cronSecret,
     RECORDATORIOS_CRON_ENABLED: recordatoriosCronEnabled,
+    PLAN_SEGUIMIENTO_CRON_ENABLED: planSeguimientoCronEnabled,
+    ALERTA_CRON_ENABLED: alertaCronEnabled,
     RECORDATORIOS_WEBHOOK_URL: recordatoriosWebhookUrl,
     RECORDATORIOS_WEBHOOK_SECRET: recordatoriosWebhookSecret,
   });

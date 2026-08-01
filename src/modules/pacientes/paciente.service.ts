@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "../../config/prisma.js";
 import { HttpError } from "../../core/errors.js";
 import { cleanStr } from "../../core/utils/strings.js";
-import { serializeDates } from "../../core/utils/dates.js";
+import { serializeDates, serializeExtraFecha } from "../../core/utils/dates.js";
 import { isValidCUI } from "../../core/utils/guatemala.js";
 import {
   buildUbicacion,
@@ -11,6 +11,7 @@ import {
 } from "./paciente.helpers.js";
 import type {
   CreatePacienteInput,
+  HistorialPacienteQuery,
   SearchPacientesQuery,
   UpdatePacienteInput,
 } from "./paciente.schemas.js";
@@ -397,6 +398,107 @@ export class PacienteService {
       seguros,
       ultimos_encuentros: encuentros,
       planes_activos: planesActivos,
+    };
+  }
+
+  /**
+   * UC-HCE-007 — Historial clínico completo, agregado por encuentro.
+   * Una sola query con includes anidados (evita N+1); paginado por encuentro.
+   * Incluye evolución y firma además de las tablas listadas en el caso de uso:
+   * dejarlas afuera habría hecho que "historial completo" no lo fuera.
+   */
+  async getHistorial(
+    pacienteId: string,
+    tenantOrgId: string,
+    query: HistorialPacienteQuery,
+  ) {
+    await this.getPacienteTenantOr404(pacienteId, tenantOrgId);
+
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 10;
+    const sortOrder = query.sortOrder ?? "desc";
+
+    const where: Prisma.encuentroWhereInput = {
+      paciente_id: pacienteId,
+      deleted: false,
+    };
+
+    const autorSelect = { id: true, nombre: true, apellido: true } as const;
+
+    const [total, encuentros] = await prisma.$transaction([
+      prisma.encuentro.count({ where }),
+      prisma.encuentro.findMany({
+        where,
+        include: {
+          usuario: { select: autorSelect },
+          sede: { select: { id: true, nombre: true } },
+          nota_clinica: {
+            where: { deleted: false },
+            include: {
+              diagnostico: { where: { deleted: false }, orderBy: { created_at: "asc" } },
+            },
+          },
+          prescripcion: { where: { deleted: false }, orderBy: { created_at: "asc" } },
+          estudio_solicitado: { where: { deleted: false }, orderBy: { created_at: "asc" } },
+          evolucion: {
+            where: { deleted: false },
+            orderBy: { fecha: "asc" },
+            include: { usuario: { select: autorSelect } },
+          },
+          firma: {
+            where: { deleted: false },
+            include: { usuario: { select: autorSelect } },
+          },
+        },
+        orderBy: { fecha: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    // nota_clinica y firma son 1:1 por regla de negocio (no por constraint de BD),
+    // así que la relación llega como array — se aplana a objeto único o null.
+    const items = encuentros.map((e) => {
+      const notaRow = e.nota_clinica[0];
+      const nota = notaRow
+        ? { ...serializeDates(notaRow), diagnosticos: notaRow.diagnostico }
+        : null;
+
+      const firmaRow = e.firma[0];
+      const firma = firmaRow
+        ? { ...serializeExtraFecha(serializeDates(firmaRow), "fecha_firma"), autor: firmaRow.usuario }
+        : null;
+
+      return {
+        id: e.id,
+        tipo: e.tipo,
+        estado: e.estado,
+        motivo_consulta: e.motivo_consulta,
+        fecha: e.fecha.toISOString(),
+        medico: e.usuario,
+        sede: e.sede,
+        nota,
+        prescripciones: e.prescripcion.map((p) => serializeDates(p)),
+        estudios: e.estudio_solicitado.map((es) =>
+          serializeExtraFecha(serializeDates(es), "fecha_resultado"),
+        ),
+        evoluciones: e.evolucion.map((ev) => ({
+          ...serializeExtraFecha(serializeDates(ev), "fecha"),
+          autor: ev.usuario,
+        })),
+        firma,
+      };
+    });
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+      sort: { sortOrder },
     };
   }
 }

@@ -13,6 +13,7 @@ import {
   eliminarAlergiaSchema,
   eliminarPacienteSchema,
   eliminarSeguroSchema,
+  historialPacienteSchema,
   listarAlergiasSchema,
   listarSegurosSchema,
   obtenerAlergiaSchema,
@@ -27,6 +28,9 @@ export const pacienteRoutes: FastifyPluginAsync = async (app) => {
   const pCrear = requirePermission("pacientes", "crear");
   const pEditar = requirePermission("pacientes", "editar");
   const pEliminar = requirePermission("pacientes", "eliminar");
+  // El historial clínico es dato HCE, no dato de paciente: se gatea con 'hce' (médico
+  // tiene hce.leer pero NO tiene 'pacientes' en su template — /perfil no le serviría).
+  const pHceLeer = requirePermission("hce", "leer");
 
   // ── CRUD Paciente ───────────────────────────────────────────────────────────
 
@@ -88,6 +92,16 @@ export const pacienteRoutes: FastifyPluginAsync = async (app) => {
       preHandler: [requireAuth, pLeer],
     },
     pacienteController.getPerfil,
+  );
+
+  /** GET /pacientes/:id/historial — Historial clínico completo (UC-HCE-007) */
+  app.get(
+    "/pacientes/:id/historial",
+    {
+      ...historialPacienteSchema,
+      preHandler: [requireAuth, pHceLeer],
+    },
+    pacienteController.getHistorial,
   );
 
   // ── Alergias ────────────────────────────────────────────────────────────────
