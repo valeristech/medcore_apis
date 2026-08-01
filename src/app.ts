@@ -24,6 +24,9 @@ import { listaEsperaRoutes } from './modules/lista-espera/lista-espera.routes.js
 import { aseguradoraRoutes } from './modules/aseguradoras/aseguradora.routes.js';
 import { convenioAseguradoraRoutes } from './modules/convenios-aseguradora/convenio-aseguradora.routes.js';
 import { encuentroRoutes } from './modules/encuentros/encuentro.routes.js';
+import { indicacionSeguimientoRoutes } from './modules/seguimiento/indicacion-seguimiento.routes.js';
+import { planSeguimientoRoutes } from './modules/seguimiento/plan-seguimiento.routes.js';
+import { alertaRoutes } from './modules/seguimiento/alerta.routes.js';
 
 export const buildApp = async (env: AppEnv) => {
   const logger =
@@ -95,6 +98,9 @@ export const buildApp = async (env: AppEnv) => {
   await app.register(aseguradoraRoutes, { prefix: '/api' });
   await app.register(convenioAseguradoraRoutes, { prefix: '/api' });
   await app.register(encuentroRoutes, { prefix: '/api' });
+  await app.register(indicacionSeguimientoRoutes, { prefix: '/api' });
+  await app.register(planSeguimientoRoutes(env), { prefix: '/api' });
+  await app.register(alertaRoutes(env), { prefix: '/api' });
 
   await registerScalarDocs(app);
 
